@@ -24,6 +24,9 @@ export function paymentMessage(error) {
   if (["unavailable", "deadline-exceeded", "internal"].includes(code))
     return "Confirmation is pending. If money was debited, check this payment before paying again.";
   if (code === "unauthenticated") return "Your session has expired. Please sign in again.";
-  if (code === "resource-exhausted") return "Too many attempts. Please wait before checking again.";
+  if (code === "resource-exhausted") {
+    if (/Contact support|support-assisted|pending payment history/i.test(error?.message || "")) return error.message;
+    return "Too many attempts. Please wait before checking again.";
+  }
   return error?.message?.replace(/^Firebase:\s*/i, "") || "Unable to confirm payment. Please check your connection and try Check payment.";
 }

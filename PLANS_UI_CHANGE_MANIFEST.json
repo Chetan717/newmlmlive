@@ -1,0 +1,107 @@
+{
+  "release": "MLM LIVE Plans UI / service ownership / invoice — 25 November 2026",
+  "baseline": "24 November central app plans release",
+  "scope": "Subscription UI, tab navigation, server-enforced service eligibility, gateway interaction and authenticated payment invoices",
+  "unchanged_baseline_files": 423,
+  "modified": [
+    {
+      "path": "GLOBAL_PLANS_SETUP_HINDI.md",
+      "before_sha256": "ccff9db5c6a374e2ed6a866dd126a62b57c92275a156c1ab1a3c35de08b52044",
+      "after_sha256": "a63dcac00aebdceefd2da334f309f3a77a03f21e1ec467679dbe445471ab6df1"
+    },
+    {
+      "path": "GLOBAL_PLANS_VALIDATION.md",
+      "before_sha256": "fd4ebd0cb47ff627ebe94139635cd7409aaa7f8414ed21f2914bd231e48a4687",
+      "after_sha256": "56088725a58be157ee30670d13f4f448758d23f3e1e8fe2678803dd405445620"
+    },
+    {
+      "path": "PLAN_INTEGRATION_SETUP_HINDI.md",
+      "before_sha256": "ccff9db5c6a374e2ed6a866dd126a62b57c92275a156c1ab1a3c35de08b52044",
+      "after_sha256": "a63dcac00aebdceefd2da334f309f3a77a03f21e1ec467679dbe445471ab6df1"
+    },
+    {
+      "path": "package.json",
+      "before_sha256": "11bc72eba65f7321f317e0d099aab11c5b1303d862a65b434ee350543e822eca",
+      "after_sha256": "a9711217cc1cd00dbd8e95f43ecbebc2b0f6046295b8c7d70b5244ae676d4eda"
+    },
+    {
+      "path": "src/Layout.jsx",
+      "before_sha256": "f8df96519094e4047e6238b4f6c609aea75729749fe1daea0d78c3f934ff4f4b",
+      "after_sha256": "7ecbc759bac9fa123fb5211b0b943501b5e6a0691ff9f4520fd75129c97d0880"
+    },
+    {
+      "path": "src/components/Sidebar.jsx",
+      "before_sha256": "c51304fa6e23e31748351ddeb7711683b77143d991cdecb6e827e4af7c555f50",
+      "after_sha256": "51b3186be8cad7ba75f886c0c43a02fdb76e26996179e27c1a2873e66e8c798e"
+    },
+    {
+      "path": "src/components/TabBar.jsx",
+      "before_sha256": "cc8f95a2ee530381daf2a0576d7bc50f6387b11e9c66b2d9923b4600e6f1f71d",
+      "after_sha256": "c4da53cc651d24c863c72ece5cda3644df26474734ebb86c6497396fc7f2a72f"
+    },
+    {
+      "path": "src/pages/Subscription/CheckoutModal.jsx",
+      "before_sha256": "87ed36411895c2065a2ae9fd0d9e3aa68909101a0e4ed411431baeca6f8dcc8a",
+      "after_sha256": "4c154ccdbfc1d7f1b33711d6b5377227bb3dd005f24375e87336706f9300e460"
+    },
+    {
+      "path": "src/pages/Subscription/MainSubscription.jsx",
+      "before_sha256": "670e508af0a845f82ed140892a3dec854788ba81b574f25355807f802a7c0982",
+      "after_sha256": "efee5048569f640da8a2bad1b53eff3c1e0e13713cc66d8ad67eab708f884ee4"
+    },
+    {
+      "path": "src/pages/Subscription/PlanModal.jsx",
+      "before_sha256": "6719909bd987c3b8cac8feb29069d2716b53d960a0f5e157f8664ed5e47babd3",
+      "after_sha256": "740d6b98c1f3941f7b3a1d2ca2bbb3d2b6a541a9cd42e77bb9807a8997440ef6"
+    },
+    {
+      "path": "src/services/paymentCheckout.js",
+      "before_sha256": "ca8b842319f1e70def6b0a43e1c4dac76add3464a4eadfbd5dae800e3f54b27e",
+      "after_sha256": "a2c9ba49db835efb0459032026b95102d0dbb7413fb7c6bf555967129edde552"
+    },
+    {
+      "path": "src/services/paymentClientCore.mjs",
+      "before_sha256": "ca74f30c4c0f21405de521b67a76d9bea54c3a3a9566297f6616a0a6441cba1e",
+      "after_sha256": "22fa17dc76adf09fa0fa88713111cb73c356db95a197e92295d21e2d47f7fa61"
+    },
+    {
+      "path": "src/services/paymentService.js",
+      "before_sha256": "d13898d01d84f74df4d4bdbe0e933cf35251ec26cf112388024b17d3a8e63750",
+      "after_sha256": "7e38ae37f7541f8ff7cd440dc9eeaac3ef06a790b6fe9e996d4c8f4e86e58dd0"
+    },
+    {
+      "path": "tests/payments.test.mjs",
+      "before_sha256": "b0a04e83a0009639fb2484b4d6ca7ef7c201b015458040925ad673794fafe737",
+      "after_sha256": "2ee49e3123c5a9f9cb14be66537dce0a74474344311719bb520d33baee6df719"
+    }
+  ],
+  "added": [
+    {
+      "path": "PLANS_UI_UPDATE_HINDI.md",
+      "sha256": "a63dcac00aebdceefd2da334f309f3a77a03f21e1ec467679dbe445471ab6df1"
+    },
+    {
+      "path": "src/pages/Subscription/PaymentSheet.jsx",
+      "sha256": "a2b93f5faa84c6a4b9121b0087b41891c8dcd6a09355cfc8b5446a7a7d3f0e3f"
+    },
+    {
+      "path": "src/pages/Subscription/planState.mjs",
+      "sha256": "9f334a5a76f6dc3460189051c374d3868eb5fa78634460e38aeb5751b5b2c8e0"
+    },
+    {
+      "path": "src/pages/Subscription/plans.css",
+      "sha256": "97d2f7b038302ba312887ec971eaada7eefa5ba6e51106e65bf852c694ac2081"
+    },
+    {
+      "path": "src/services/paymentInvoice.js",
+      "sha256": "8bcd9182ab730449fcc702102a750f2bb691ad6ec2bae03f9fb626eebfd880d5"
+    },
+    {
+      "path": "tests/planExperience.test.mjs",
+      "sha256": "869c1d6db446d53b5e2dfb02be7516409befd11d6f31eff5f637de674b8bc755"
+    }
+  ],
+  "removed": [],
+  "native_source_unchanged": true,
+  "validation": "GLOBAL_PLANS_VALIDATION.md"
+}

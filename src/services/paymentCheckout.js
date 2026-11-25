@@ -25,7 +25,7 @@ export async function openPaymentCheckout(checkout, user = {}) {
   const options = {
     key: checkout.keyId, order_id: checkout.orderId,
     amount: checkout.price.totalPaise, currency: "INR",
-    name: checkout.companyName || "MLM LIVE", description: checkout.plan.PlanName,
+    name: "MLM LIVE", description: checkout.plan.PlanName,
     prefill: { name: user.name || "", contact: String(user.mobileNo || ""), email: user.email || "" },
     theme: { color: "#2F80EA" },
   };
@@ -44,13 +44,16 @@ export async function openPaymentCheckout(checkout, user = {}) {
   }
   return new Promise((resolve, reject) => {
     let finished = false;
+    let failureMessage = "";
     const finish = (value) => { if (!finished) { finished = true; resolve(value); } };
     const gateway = new window.Razorpay({
       ...options, retry: { enabled: false },
       handler: (response) => finish({ status: "verify", response }),
-      modal: { ondismiss: () => finish({ status: "pending" }) },
+      modal: { ondismiss: () => finish({ status: "pending", message: failureMessage }) },
     });
-    gateway.on("payment.failed", () => finish({ status: "pending", message: "Payment was not completed. Check the status if money was debited." }));
+    // A failed-attempt event can arrive while Checkout is still visible. Do
+    // not restore our app dialog on top of a gateway that is still interactive.
+    gateway.on("payment.failed", () => { failureMessage = "Payment was not completed. Check the status if money was debited."; });
     try { gateway.open(); } catch (error) { reject(error); }
   });
 }

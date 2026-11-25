@@ -20,6 +20,7 @@ export function createPaymentClient({ call, getUid, storage, now = Date.now, new
   const inflight = new Map();
   const checks = new Map();
   const modes = new Map();
+  const revisions = new Map();
   const scope = () => {
     const uid = getUid();
     if (!uid) throw new Error("Please sign in again to manage your plan.");
@@ -38,6 +39,7 @@ export function createPaymentClient({ call, getUid, storage, now = Date.now, new
     storage.setItem(storageKey(), JSON.stringify(value));
   }
   function invalidate() {
+    revisions.set(scope(), (revisions.get(scope()) || 0) + 1);
     const prefix = `${scope()}:`;
     for (const key of cache.keys()) if (key.startsWith(prefix)) cache.delete(key);
   }
@@ -77,12 +79,13 @@ export function createPaymentClient({ call, getUid, storage, now = Date.now, new
   }
   async function cached(action, ttl, data = {}, force = false) {
     const owner = scope();
-    const key = `${owner}:${action}:${JSON.stringify(data)}`;
+    const revision = revisions.get(owner) || 0;
+    const key = `${owner}:${revision}:${action}:${JSON.stringify(data)}`;
     if (!force && cache.get(key)?.until > now()) return cache.get(key).value;
     if (inflight.has(key)) return inflight.get(key);
     const promise = call(action, { ...data }).then((value) => {
       assertOwner(owner);
-      cache.set(key, { until: now() + ttl, value });
+      if ((revisions.get(owner) || 0) === revision) cache.set(key, { until: now() + ttl, value });
       return value;
     }).finally(() => inflight.delete(key));
     inflight.set(key, promise);
@@ -148,6 +151,12 @@ export function createPaymentClient({ call, getUid, storage, now = Date.now, new
       return rememberMode(value);
     },
     create, recover, check, readPending, invalidate,
+    receipt: async (purchaseId) => {
+      const owner = scope();
+      const result = await call("paymentReceipt", { purchaseId });
+      assertOwner(owner);
+      return result.invoice;
+    },
     remember: (checkout) => {
       rememberMode(checkout);
       writePending({ planId: checkout.plan.planId, plan: checkout.plan, purchaseId: checkout.purchaseId, checkout });

@@ -132,3 +132,17 @@ test('a saved checkout from the prior company-based app resumes without creating
  await s.client.recover();assert.equal(s.calls.filter(c=>c.name==='paymentCreateOrder').length,0);
  assert.equal(backing.has('mlmlive.payment.pending.v1:user1:old_company:test'),false);
 });
+
+
+test('cache invalidation isolates an older in-flight availability response',async()=>{
+ const resolves=[];const s=setup(()=>new Promise(r=>resolves.push(r)));
+ const old=s.client.catalog();s.client.invalidate();const fresh=s.client.catalog();
+ assert.equal(resolves.length,2);resolves[1]({mode:'test',plans:[]});await fresh;
+ resolves[0]({mode:'test',plans:[{planId:'already_owned'}]});await old;
+ assert.deepEqual((await s.client.catalog()).plans,[]);
+});
+test('invoice API sends only the purchase reference and respects an account change',async()=>{
+ let resolve;const s=setup(()=>new Promise(r=>resolve=r));const result=s.client.receipt('p1');
+ assert.deepEqual(s.calls[0],{name:'paymentReceipt',data:{purchaseId:'p1'}});
+ s.setUid('user2');resolve({invoice:{paymentId:'pay1'}});await assert.rejects(result,/account changed/);
+});

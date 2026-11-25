@@ -43,7 +43,7 @@ export default function Layout({
           collapsed={collapsed}
           setCollapsed={setCollapsed}
           setMobileOpen={setMobileOpen}
-          hidden={hideHeader}
+          hidden={hideHeader || pathname === "/subscription"}
         />
 
         <div

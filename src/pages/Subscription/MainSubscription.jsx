@@ -1,788 +1,733 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
-import { Skeleton } from "@heroui/react";
-import subcric from "./plan.webp";
-import { CheckoutModal } from "./CheckoutModal";
-import { PlanModal } from "./PlanModal";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  ChevronRight,
+  Clock,
+  Crown,
+  Download,
+  History,
+  Image,
+  RefreshCw,
+  Video,
+  X,
+} from "lucide-react";
 import { useAuth } from "../../Auth/AuthContext";
 import { payments, paymentMessage } from "../../services/paymentService";
 import { isPaid, serviceLabel } from "../../services/paymentClientCore.mjs";
+import { CheckoutModal } from "./CheckoutModal";
+import { PlanModal } from "./PlanModal";
 import {
-  CreditCard,
-  History,
-  Clock,
-  Download,
-  IndianRupee,
-} from "lucide-react";
+  dateLabel,
+  eligiblePlans,
+  grantAvailable,
+  money,
+} from "./planState.mjs";
+import "./plans.css";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const formatDate = (ts) => {
-  if (!ts) return "N/A";
-  const d = ts?.seconds ? new Date(ts.seconds * 1000) : new Date(ts);
-  return d.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
-
-const daysLeft = (expiryStr) => {
-  const today = new Date();
-  const expiry = new Date(expiryStr);
-  const diff = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
-  return diff;
-};
-
-// ─── Active Subscription Card ─────────────────────────────────────────────────
-function ActiveSubscriptionCard({ sub }) {
-  const days = daysLeft(sub.expirydate);
-  const totalDays = sub.duration ?? 1;
-  const usedDays = totalDays - days;
-  const progress = Math.min(100, Math.max(0, (usedDays / totalDays) * 100));
-
+const kindIcon = (kind) =>
+  kind === "combo" ? Crown : kind === "video" ? Video : Image;
+function PlanCard({ plan, onChoose }) {
+  const Icon = kindIcon(plan.serviceType),
+    combo = plan.serviceType === "combo";
   return (
-    <div
-      className="relative rounded-[28px] overflow-hidden shadow-2xl"
-      style={{
-        background:
-          "linear-gradient(135deg,#2F80EA 0%,#236FDE 48%,#1454C5 100%)",
-      }}
-    >
-      {/* Shimmer overlay */}
-      <div
-        className="absolute inset-0 opacity-20"
-        style={{
-          background:
-            "radial-gradient(ellipse at 30% 0%, #6366f1 0%, transparent 70%), radial-gradient(ellipse at 80% 100%, #3b82f6 0%, transparent 60%)",
-        }}
-      />
-      {/* Top highlight */}
-      <div className="absolute top-0 left-6 right-6 h-px bg-white/20 rounded-full" />
-
-      <div className="relative p-6">
-        {/* Plan name + badge */}
-        <div className="flex items-start justify-between gap-3 mb-5">
-          <div className="flex items-center gap-3">
-            <div
-              className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
-              style={{
-                background: "rgba(255,255,255,0.12)",
-                backdropFilter: "blur(8px)",
-              }}
-            >
-              <CreditCard className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="text-[18px] font-display font-bold text-white leading-tight">
-                {sub.plan || "Subscription"}
-              </p>
-              <p className="text-[11px] font-semibold text-white/60 mt-0.5 tracking-wider uppercase">
-                {serviceLabel(sub.serviceType)}
-              </p>
-            </div>
+    <article className={`mlm-plan-card ${combo ? "mlm-plan-featured" : ""}`}>
+      <div className="mlm-plan-row">
+        <span className="mlm-service-icon">
+          {plan.image_url ? (
+            <img src={plan.image_url} alt="" />
+          ) : (
+            <Icon size={23} />
+          )}
+        </span>
+        <div className="mlm-plan-copy">
+          <div className="mlm-title-row">
+            <h3>{plan.PlanName}</h3>
+            {combo && <span className="mlm-tag">COMBO</span>}
           </div>
-          <div
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full shrink-0"
-            style={{
-              background: "rgba(34,197,94,0.18)",
-              border: "1px solid rgba(34,197,94,0.3)",
-            }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            <p className="text-[10px] font-bold text-green-400 uppercase tracking-wider">
-              {sub.scheduled ? "Upcoming" : "Active"}
-            </p>
-          </div>
-        </div>
-
-        {/* Progress timeline */}
-        <div
-          className="mb-5 rounded-2xl p-4"
-          style={{
-            background: "rgba(255,255,255,0.07)",
-            backdropFilter: "blur(4px)",
-          }}
-        >
-          <div className="flex items-end justify-between mb-3">
-            <div>
-              <p className="text-[9px] text-white/40 uppercase font-bold tracking-wider mb-1">
-                Started
-              </p>
-              <p className="text-[13px] font-bold text-white/90">
-                {formatDate(sub.startdate)}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-[9px] text-white/40 uppercase font-bold tracking-wider mb-1">
-                Expires
-              </p>
-              <p className="text-[13px] font-bold text-red-300">
-                {formatDate(sub.expirydate)}
-              </p>
-            </div>
-          </div>
-          <div
-            className="relative w-full h-2 rounded-full overflow-hidden mb-2"
-            style={{ background: "rgba(255,255,255,0.1)" }}
-          >
-            <div
-              className="absolute left-0 top-0 h-full rounded-full transition-all duration-1000 ease-out"
-              style={{
-                width: `${progress}%`,
-                background: "linear-gradient(90deg, #60a5fa, #a78bfa)",
-              }}
-            />
-          </div>
-          <p className="text-[11px] font-bold text-center text-blue-200">
-            {sub.scheduled ? `Starts ${formatDate(sub.startdate)}` : days > 0 ? `${days} days remaining` : "Expiring today"}
+          <p>
+            {serviceLabel(plan.serviceType)} · {plan.Day_value} days
           </p>
         </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            {
-              label: sub.serviceType === "video" ? "Service" : "Downloads",
-              value: sub.serviceType === "video" ? "Video" : sub.unlimitedDownloads ? "Unlimited" : sub.download ?? 0,
-              icon: <Download className="w-3.5 h-3.5" />,
-            },
-            {
-              label: "Duration",
-              value: `${sub.duration ?? 0}d`,
-              icon: <Clock className="w-3.5 h-3.5" />,
-            },
-            {
-              label: "Paid",
-              value: `₹${sub.PaymentAmount ?? 0}`,
-              icon: <IndianRupee className="w-3.5 h-3.5" />,
-            },
-          ].map((s, i) => (
-            <div
-              key={i}
-              className="rounded-xl p-3 text-center"
-              style={{ background: "rgba(255,255,255,0.08)" }}
+        {!combo && (
+          <div className="mlm-plan-buy">
+            <strong>
+              {money(
+                plan.amountPaise ?? Math.round(Number(plan.PlanAmount) * 100),
+              )}
+            </strong>
+            <button
+              aria-label={`View ${plan.PlanName}`}
+              onClick={() => onChoose(plan)}
             >
-              <div className="flex justify-center text-blue-200 mb-1.5">
-                {s.icon}
-              </div>
-              <p className="text-[14px] font-bold text-white leading-none">
-                {s.value}
-              </p>
-              <p className="text-[9px] font-semibold text-white/40 uppercase tracking-wide mt-1">
-                {s.label}
-              </p>
-            </div>
-          ))}
-        </div>
+              Buy
+            </button>
+          </div>
+        )}
       </div>
-    </div>
+      {combo && (
+        <div className="mlm-featured-bottom">
+          <strong>
+            {money(
+              plan.amountPaise ?? Math.round(Number(plan.PlanAmount) * 100),
+            )}
+          </strong>
+          <button onClick={() => onChoose(plan)}>Buy Combo</button>
+        </div>
+      )}
+    </article>
   );
 }
-
-// ─── Expired Subscription Card ────────────────────────────────────────────────
-function ExpiredSubscriptionCard({ sub }) {
+function ActiveCard({ grants, onInvoice, invoiceBusy }) {
+  const first = grants[0],
+    kind = grants.length > 1 ? "combo" : first.serviceType || "poster",
+    Icon = kindIcon(kind);
   return (
-    <div className="relative rounded-[24px] overflow-hidden border border-border/60 shadow-sm bg-muted/20">
-      {/* Faded stripe */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-muted-foreground/20 to-muted-foreground/10" />
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-muted border border-border flex items-center justify-center text-muted-foreground shrink-0">
-              <History className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[16px] font-display font-bold text-foreground/80">
-                {sub.plan || "Subscription"}
-              </p>
-              <p className="text-[10px] font-semibold text-muted-foreground mt-0.5 tracking-wider uppercase">
-                {serviceLabel(sub.serviceType)}
-              </p>
-            </div>
+    <article className="mlm-active-card">
+      <div className="mlm-plan-row">
+        <span className="mlm-service-icon">
+          <Icon size={23} />
+        </span>
+        <div className="mlm-plan-copy">
+          <div className="mlm-title-row">
+            <h3>{first.planName || "Active plan"}</h3>
+            <span className="mlm-tag">
+              {first.startsAtMs > Date.now() ? "SCHEDULED" : "ACTIVE"}
+            </span>
           </div>
-          <div className="bg-danger/8 border border-danger/15 rounded-full px-2.5 py-1 shrink-0">
-            <p className="text-[10px] font-bold text-danger/80 uppercase tracking-wider">
-              {sub.payment || "Expired"}
-            </p>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-border/60 bg-background/40 p-3 mb-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-[9px] text-muted-foreground/60 uppercase font-bold tracking-wider mb-1">
-                Started
-              </p>
-              <p className="text-[13px] font-bold text-foreground/70">
-                {formatDate(sub.startdate)}
-              </p>
-            </div>
-            <div className="h-6 w-px bg-border mx-3" />
-            <div className="text-right">
-              <p className="text-[9px] text-muted-foreground/60 uppercase font-bold tracking-wider mb-1">
-                Expired On
-              </p>
-              <p className="text-[13px] font-bold text-danger/70">
-                {formatDate(sub.expirydate)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { label: "Downloads", value: sub.download ?? 0 },
-            { label: "Duration", value: `${sub.duration ?? 0}d` },
-            { label: "Paid", value: `₹${sub.PaymentAmount ?? 0}` },
-          ].map((s, i) => (
-            <div
-              key={i}
-              className="rounded-xl border border-border/50 bg-muted/20 p-2.5 text-center"
-            >
-              <p className="text-[14px] font-bold text-foreground/60">
-                {s.value}
-              </p>
-              <p className="text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-wide mt-1">
-                {s.label}
-              </p>
-            </div>
-          ))}
+          <p>{serviceLabel(kind)}</p>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ─── Skeleton Loaders ─────────────────────────────────────────────────────────
-function SubSkeleton() {
-  return (
-    <div className="space-y-6">
-      <Skeleton className="h-10 w-48 rounded-xl" />
-      <div className="rounded-[24px] overflow-hidden border border-border bg-white dark:bg-black/20 p-6">
-        <div className="flex gap-4 mb-6">
-          <Skeleton className="w-12 h-12 rounded-2xl shrink-0" />
-          <div className="space-y-2 flex-1 pt-1">
-            <Skeleton className="h-6 w-1/3 rounded-lg" />
-            <Skeleton className="h-4 w-1/4 rounded-lg" />
-          </div>
-        </div>
-        <Skeleton className="h-24 w-full rounded-2xl mb-6" />
-        <div className="grid grid-cols-3 gap-3">
-          <Skeleton className="h-20 rounded-xl" />
-          <Skeleton className="h-20 rounded-xl" />
-          <Skeleton className="h-20 rounded-xl" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Tabs Component ───────────────────────────────────────────────────────────
-function SubscriptionTabs({
-  activeTab,
-  setActiveTab,
-  activeCount,
-  expiredCount,
-}) {
-  const tabs = [
-    { key: "active", label: "Active Plans", count: activeCount },
-    { key: "expired", label: "History", count: expiredCount },
-  ];
-
-  return (
-    <div className="flex gap-2 mb-6">
-      {tabs.map((tab) => (
-        <button
-          key={tab.key}
-          onClick={() => setActiveTab(tab.key)}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-[13px] font-bold transition-all duration-300 border ${
-            activeTab === tab.key
-              ? "bg-accent text-white border-accent shadow-lg shadow-accent/20"
-              : "bg-muted/30 text-muted-foreground hover:text-foreground border-border"
-          }`}
-        >
-          {tab.key === "active" ? (
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-          ) : (
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 6v6l4 2" />
-            </svg>
-          )}
-          {tab.label}
-          <span
-            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${
-              activeTab === tab.key
-                ? "bg-white/20 text-white"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {tab.count}
+      {grants.map((g) => (
+        <div className="mlm-active-service" key={g.serviceType || "poster"}>
+          <p>
+            {serviceLabel(g.serviceType)} ·{" "}
+            {g.startsAtMs > Date.now() ? "Starts" : "Access until"}{" "}
+            {dateLabel(
+              g.startsAtMs > Date.now() ? g.startsAtMs : g.expiresAtMs,
+            )}
+          </p>
+          <span>
+            {(g.serviceType || "poster") === "poster"
+              ? g.unlimitedDownloads
+                ? "Unlimited downloads"
+                : `${g.remainingDownloads} credits left`
+              : g.remainingCredits == null
+                ? "Valid for this period"
+                : `${g.remainingCredits} credits left`}
           </span>
-        </button>
+        </div>
       ))}
-    </div>
+      <button
+        className="mlm-active-invoice"
+        onClick={() => onInvoice(first.purchaseId)}
+        disabled={Boolean(invoiceBusy)}
+      >
+        <Download size={15} />
+        {invoiceBusy === first.purchaseId ? "Preparing…" : "Download invoice"}
+      </button>
+    </article>
   );
 }
-
-// ─── Main Component ───────────────────────────────────────────────────────────
 export default function MainSubscription() {
-  const { user } = useAuth();
-  const [plans, setPlans] = useState([]);
-  const [selectedPlan, setSelectedPlan] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [openPlanModal, setOpenPlanModal] = useState(false);
-  const [openCheckoutModal, setOpenCheckoutModal] = useState(false);
-
-  // Subscription states
-  const [activeSubscriptions, setActiveSubscriptions] = useState([]);
-  const [expiredSubscriptions, setExpiredSubscriptions] = useState([]);
-  const [subLoading, setSubLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("active");
-
-  const accountId = user?.uid;
-  const [suggestedCoupon, setSuggestedCoupon] = useState("");
-  const [historyData, setHistoryData] = useState({ items: [], entitlement: null, cursor: null });
-  const [legacyData, setLegacyData] = useState({ items: [], cursor: null });
-  const [subError, setSubError] = useState("");
-  const [pending, setPending] = useState(null);
-  const [checking, setChecking] = useState(false);
-  const [notice, setNotice] = useState("");
-  const [mode, setMode] = useState("");
-  const currentAccount = useRef(accountId);
-  currentAccount.current = accountId;
-
-  const fetchSubscriptions = useCallback(async (force = false, cursor = null) => {
-    if (!accountId) { setSubLoading(false); return; }
-    try {
-      setSubError("");
-      const result = await payments.history(cursor, force);
-      if (currentAccount.current !== accountId) return;
-      setHistoryData((old) => ({ ...result, items: cursor ? [...old.items, ...result.items] : result.items }));
-      // Recover an unfinished checkout even after app storage was cleared.
-      if (!payments.readPending()) {
-        const unresolved = result.items.find((p) => ["created", "pending", "creating", "creation_unknown"].includes(p.status));
-        if (unresolved) payments.remember(unresolved);
+  const { user } = useAuth(),
+    uid = user?.uid,
+    owner = useRef(uid),
+    epoch = useRef(0);
+  owner.current = uid;
+  const [catalog, setCatalog] = useState({
+      plans: [],
+      mode: "",
+      suggestedCoupon: "",
+    }),
+    [data, setData] = useState({ items: [], entitlement: null, cursor: null });
+  const [loading, setLoading] = useState(true),
+    [error, setError] = useState(""),
+    [view, setView] = useState("plans"),
+    [outcome, setOutcome] = useState(null);
+  const [selected, setSelected] = useState(null),
+    [details, setDetails] = useState(false),
+    [checkout, setCheckout] = useState(false),
+    [pending, setPending] = useState(null);
+  const [checking, setChecking] = useState(false),
+    [invoiceBusy, setInvoiceBusy] = useState(""),
+    [notice, setNotice] = useState(""),
+    [legacy, setLegacy] = useState(null),
+    [legacyBusy, setLegacyBusy] = useState(false);
+  const reload = useCallback(
+    async (force = false) => {
+      if (!uid) {
+        setLoading(false);
+        setError("Sign in to view app plans.");
+        return;
       }
+      const n = ++epoch.current;
+      if (force) payments.invalidate();
+      setLoading(true);
+      setError("");
+      const results = await Promise.allSettled([
+        payments.catalog(force),
+        payments.history(null, force),
+      ]);
+      if (owner.current !== uid || epoch.current !== n) return;
+      const [c, h] = results;
+      if (c.status === "fulfilled") setCatalog(c.value);
+      if (h.status === "fulfilled") {
+        setData(h.value);
+        if (!payments.readPending()) {
+          const saved = h.value.items.find((p) =>
+            ["created", "pending", "creating", "creation_unknown"].includes(
+              p.status,
+            ),
+          );
+          if (saved) payments.remember(saved);
+        }
+      } else if (c.status === "fulfilled" && c.value.entitlement)
+        setData((old) => ({ ...old, entitlement: c.value.entitlement }));
+      if (c.status === "rejected" || h.status === "rejected")
+        setError(paymentMessage(c.status === "rejected" ? c.reason : h.reason));
       setPending(payments.readPending());
-    } catch (err) { if (currentAccount.current === accountId) setSubError(paymentMessage(err)); }
-    finally { if (currentAccount.current === accountId) setSubLoading(false); }
-  }, [accountId]);
-
-  const fetchPlans = useCallback(async (force = false) => {
-    setLoading(true); setError(null);
-    try {
-      const result = await payments.catalog(force);
-      if (currentAccount.current !== accountId) return;
-      setPlans(result.plans); setSuggestedCoupon(result.suggestedCoupon || ""); setMode(result.mode);
-      setPending(payments.readPending());
-    } catch (err) { if (currentAccount.current === accountId) setError(paymentMessage(err)); }
-    finally { if (currentAccount.current === accountId) setLoading(false); }
-  }, [accountId]);
-
+      setLoading(false);
+    },
+    [uid],
+  );
   useEffect(() => {
-    setHistoryData({ items: [], entitlement: null, cursor: null });
-    setLegacyData({ items: [], cursor: null });
-    setPlans([]); setPending(null); setSubLoading(true);
-    setSelectedPlan(null); setOpenCheckoutModal(false); setOpenPlanModal(false);
-    if (!accountId) { setSubLoading(false); setLoading(false); setError("Sign in to view app plans."); return; }
-    void fetchSubscriptions();
-    void fetchPlans();
-    payments.legacyHistory().then((value) => {
-      if (currentAccount.current === accountId) setLegacyData(value);
-    }).catch((err) => { if (currentAccount.current === accountId) setSubError(paymentMessage(err)); });
-  }, [accountId, fetchSubscriptions, fetchPlans]);
-
-  useEffect(() => {
-    const time = Date.now();
-    const rows = historyData.items.map((p) => ({
-      id: p.purchaseId, plan: p.plan.PlanName, planType: p.plan.Type,
-      serviceType: p.plan.serviceType || "poster", download: p.plan.downloads,
-      duration: p.plan.Day_value, PaymentAmount: p.price.totalPaise / 100,
-      startdate: p.startsAtMs, expirydate: p.subscriptionExpiresAtMs,
-      payment: p.status === "paid" ? (p.subscriptionExpiresAtMs > time ? "Paid" : "Expired") : p.status.replaceAll("_", " "),
-    }));
-    const active = (historyData.entitlement?.grants || []).filter((g) => !g.revoked && g.expiresAtMs > time).map((g) => {
-      const purchase = rows.find((r) => r.id === g.purchaseId);
-      return { ...purchase, id: `${g.purchaseId}:${g.serviceType || "poster"}`, plan: g.planName || purchase?.plan || "Active Plan",
-        serviceType: g.serviceType || "poster", download: g.remainingDownloads, unlimitedDownloads: g.unlimitedDownloads,
-        duration: g.duration || (g.expiresAtMs - g.startsAtMs) / 86400000,
-        PaymentAmount: (g.paidPaise || 0) / 100, startdate: g.startsAtMs, expirydate: g.expiresAtMs, scheduled: g.startsAtMs > time };
-    });
-    for (const row of legacyData.items) {
-      if (row.Active && new Date(row.expirydate).getTime() > time) active.push(row);
-    }
-    setActiveSubscriptions(active);
-    setExpiredSubscriptions([...rows, ...legacyData.items]);
-  }, [historyData, legacyData]);
-
-  const handlePaymentSuccess = useCallback(async (result) => {
-    if (!isPaid(result)) return;
-    setOpenCheckoutModal(false); setOpenPlanModal(false); setPending(null);
-    setNotice(result.mode === "test" ? "Test payment verified. Live access has not changed." : "Payment verified. Your plan has been activated or scheduled as a renewal.");
-    payments.invalidate();
-    await fetchSubscriptions(true);
-  }, [accountId, fetchSubscriptions]);
-
-  const checkPending = useCallback(async () => {
-    if (!accountId) return;
-    setChecking(true);
-    try {
-      const result = await payments.check();
-      if (currentAccount.current !== accountId) return;
-      setPending(payments.readPending());
-      if (isPaid(result)) await handlePaymentSuccess(result);
-      else setNotice(result ? `Payment ${result.status.replaceAll("_", " ")}. If money was debited, check again before paying again.` : "No pending payment found.");
-    } catch (err) { if (currentAccount.current === accountId) setNotice(paymentMessage(err)); }
-    finally { setChecking(false); }
-  }, [accountId, handlePaymentSuccess]);
-
-  useEffect(() => {
-    if (!accountId) return;
-    const resume = () => {
-      if (document.visibilityState !== "hidden" && payments.readPending() && !openCheckoutModal) void checkPending();
+    setCatalog({ plans: [], mode: "", suggestedCoupon: "" });
+    setData({ items: [], entitlement: null, cursor: null });
+    setLegacy(null);
+    setOutcome(null);
+    setView("plans");
+    setDetails(false);
+    setCheckout(false);
+    setSelected(null);
+    setPending(null);
+    setNotice("");
+    setInvoiceBusy("");
+    setChecking(false);
+    void reload();
+    return () => {
+      epoch.current++;
     };
-    resume();
-    window.addEventListener("mlmlive-payment-resume", resume);
+  }, [uid, reload]);
+  useEffect(() => {
+    let last = Date.now();
+    const resume = () => {
+      if (
+        document.visibilityState === "hidden" ||
+        checkout ||
+        Date.now() - last < 30000
+      )
+        return;
+      last = Date.now();
+      void reload(true);
+    };
     window.addEventListener("focus", resume);
     document.addEventListener("visibilitychange", resume);
+    window.addEventListener("mlmlive-payment-resume", resume);
     return () => {
-      window.removeEventListener("mlmlive-payment-resume", resume);
       window.removeEventListener("focus", resume);
       document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("mlmlive-payment-resume", resume);
     };
-  }, [accountId, checkPending, openCheckoutModal, pending?.purchaseId, pending?.requestId]);
-
-  const handleSlideClick = (plan) => {
-    setSelectedPlan(plan);
-    setOpenPlanModal(true);
-  };
-
-  const hasAnySub =
-    activeSubscriptions.length > 0 || expiredSubscriptions.length > 0;
-
-  if (subLoading) {
-    return (
-      <div className="w-full min-h-full bg-background p-4 md:p-8">
-        <div className="max-w-2xl mx-auto">
-          <SubSkeleton />
-        </div>
-      </div>
+  }, [reload, checkout]);
+  useEffect(() => {
+    const next = (data.entitlement?.grants || [])
+      .flatMap((g) => [g.startsAtMs, g.expiresAtMs])
+      .filter((t) => t > Date.now())
+      .sort((a, b) => a - b)[0];
+    if (!next) return;
+    const timer = setTimeout(
+      () => void reload(true),
+      Math.min(next - Date.now() + 1000, 2147483647),
     );
-  }
-
+    return () => clearTimeout(timer);
+  }, [data.entitlement, reload]);
+  useEffect(() => {
+    const scroller = document.querySelector(".mlm-main-scroll-container");
+    if (scroller) scroller.scrollTop = 0;
+  }, [view]);
+  const onPaid = useCallback(
+    async (result) => {
+      if (!isPaid(result)) return;
+      setOutcome(result);
+      setView("result");
+      setDetails(false);
+      setCheckout(false);
+      setPending(null);
+      await reload(true);
+    },
+    [reload],
+  );
+  const check = async () => {
+    if (checking) return;
+    const account = uid;
+    setChecking(true);
+    setNotice("");
+    try {
+      const result = await payments.check();
+      if (owner.current !== account) return;
+      setPending(payments.readPending());
+      if (isPaid(result)) await onPaid(result);
+      else if (result) {
+        setOutcome(result);
+        setView("result");
+      }
+    } catch (e) {
+      if (owner.current === account) setNotice(paymentMessage(e));
+    } finally {
+      if (owner.current === account) setChecking(false);
+    }
+  };
+  const invoice = async (id) => {
+    if (invoiceBusy) return;
+    const account = uid;
+    setInvoiceBusy(id);
+    setNotice("");
+    try {
+      const record = await payments.receipt(id);
+      if (owner.current !== account) return;
+      const { downloadPaymentInvoice } = await import(
+        "../../services/paymentInvoice"
+      );
+      if (owner.current !== account) return;
+      await downloadPaymentInvoice(record);
+    } catch (e) {
+      if (owner.current === account) setNotice(paymentMessage(e));
+    } finally {
+      if (owner.current === account) setInvoiceBusy("");
+    }
+  };
+  const choose = (plan) => {
+    setSelected(plan);
+    setDetails(true);
+  };
+  const available = data.entitlement
+    ? eligiblePlans(catalog.plans, data.entitlement)
+    : [];
+  const groups = new Map();
+  for (const g of data.entitlement?.grants || [])
+    if (grantAvailable(g)) {
+      if (!groups.has(g.purchaseId)) groups.set(g.purchaseId, []);
+      groups.get(g.purchaseId).push(g);
+    }
+  const resultPaid = isPaid(outcome),
+    resultPending =
+      outcome &&
+      ![
+        "paid",
+        "failed",
+        "expired",
+        "refunded",
+        "partially_refunded",
+        "disputed",
+      ].includes(outcome.status);
+  const ResultIcon = resultPaid ? Crown : resultPending ? Clock : X;
+  const historyMore = async () => {
+    try {
+      const page = await payments.history(data.cursor);
+      if (owner.current === uid)
+        setData((old) => ({
+          ...page,
+          items: [
+            ...new Map(
+              [...old.items, ...page.items].map((p) => [p.purchaseId, p]),
+            ).values(),
+          ],
+        }));
+    } catch (e) {
+      setNotice(paymentMessage(e));
+    }
+  };
+  const earlier = async () => {
+    if (legacyBusy) return;
+    setLegacyBusy(true);
+    try {
+      const page = await payments.legacyHistory(legacy?.cursor);
+      if (owner.current === uid)
+        setLegacy((old) => ({
+          ...page,
+          items: [
+            ...new Map(
+              [...(old?.items || []), ...page.items].map((p) => [p.id, p]),
+            ).values(),
+          ],
+        }));
+    } catch (e) {
+      setNotice(paymentMessage(e));
+    } finally {
+      setLegacyBusy(false);
+    }
+  };
   return (
-    <div className="w-full min-h-full bg-background p-4 md:p-8">
-      <div className="max-w-2xl mx-auto">
-        {/* Premium Hero Header */}
-        <div
-          className="relative mb-8 rounded-[28px] overflow-hidden p-6"
-          style={{
-            background:
-              "linear-gradient(135deg, #2F80EA 0%, #2F80EA 60%, #2F80EA 100%)",
-          }}
-        >
-          <div
-            className="absolute inset-0 opacity-30"
-            style={{
-              background:
-                "radial-gradient(ellipse at 80% 20%, #2F80EA 0%, transparent 60%)",
-            }}
-          />
-          <div className="absolute top-0 left-8 right-8 h-px bg-white/15 rounded-full" />
-          <div className="relative flex items-center gap-4">
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 flex-shrink-0"
-              style={{ background: "rgba(255,255,255,0.12)" }}
-            >
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                className="text-yellow-300"
-              >
-                <path
-                  d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"
-                  fill="currentColor"
-                />
-              </svg>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-white/50 uppercase tracking-widest mb-0.5">
-                Premium Access
-              </p>
-              <h1 className="text-[22px] font-display font-bold text-white leading-tight">
-                My Subscriptions
+    <div
+      className={`mlm-plans mlm-plans-page ${view === "result" ? "mlm-result-page" : ""}`}
+    >
+      {view !== "result" && (
+        <header className="mlm-plans-header">
+          <div className="mlm-header-content">
+            <div className="mlm-title-row">
+              {view !== "plans" && (
+                <button
+                  className="mlm-back"
+                  aria-label="Back to plans"
+                  onClick={() => setView("plans")}
+                >
+                  <ArrowLeft size={22} />
+                </button>
+              )}
+              <h1>
+                {view === "my"
+                  ? "My plan"
+                  : view === "history"
+                    ? "Purchase history"
+                    : "Plans"}
               </h1>
             </div>
+            <p>
+              {view === "plans"
+                ? "Poster designs and video editing, in one place."
+                : view === "my"
+                  ? "Your services, validity and credits."
+                  : "Your verified payments and invoices."}
+            </p>
           </div>
-        </div>
-
-        {mode === "test" && <p className="mb-4 rounded-xl border border-amber-300 p-3 text-sm">Test mode — test purchases do not activate live access.</p>}
-        {notice && <p role="status" className="mb-4 rounded-xl border border-border p-3 text-sm">{notice}</p>}
-        {subError && <div role="alert" className="mb-4 rounded-xl border border-red-300 p-3 text-sm">{subError} <button className="underline ml-2" onClick={() => fetchSubscriptions(true)}>Retry</button></div>}
-        {pending && <div className="mb-6 rounded-2xl border border-amber-300 p-4 space-y-3">
-          <p className="font-bold">Payment confirmation pending</p>
-          <p className="text-sm text-muted-foreground">{pending.plan?.PlanName || pending.checkout?.plan?.PlanName}. If money was debited, check this payment before paying again.</p>
-          {pending.checkout?.orderId && <p className="text-xs break-all">Order: {pending.checkout.orderId}</p>}
-          <div className="flex gap-3">
-            <button disabled={checking} onClick={checkPending} className="rounded-xl bg-accent text-white px-4 py-2 disabled:opacity-50">{checking ? "Checking…" : "Check payment"}</button>
-            {(pending.plan || pending.checkout?.plan) && <button onClick={() => { setSelectedPlan(pending.plan || pending.checkout.plan); setOpenCheckoutModal(true); }} className="rounded-xl border border-border px-4 py-2">View checkout</button>}
-          </div>
-        </div>}
-        {/* ── Subscription Tabs (only shown if user has any subs) ── */}
-        {hasAnySub && (
-          <div className="mb-10">
-            <SubscriptionTabs
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              activeCount={activeSubscriptions.length}
-              expiredCount={expiredSubscriptions.length}
-            />
-
-            {/* Active Tab Content */}
-            {activeTab === "active" && (
-              <div className="space-y-6">
-                {activeSubscriptions.length === 0 ? (
-                  <div className="py-12 px-6 rounded-3xl bg-muted/30 border border-border text-center flex flex-col items-center">
-                    <div className="w-20 h-20 bg-white dark:bg-black rounded-full flex items-center justify-center shadow-sm mb-4">
-                      <CreditCard className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                    <h3 className="text-xl font-display font-bold text-foreground mb-2">
-                      No Active Plans
-                    </h3>
-                    <p className="text-muted-foreground text-center max-w-sm">
-                      You don't have any active subscriptions. Choose a plan
-                      below to unlock premium features.
-                    </p>
-                  </div>
-                ) : (
-                  activeSubscriptions.map((sub) => (
-                    <ActiveSubscriptionCard key={sub.id} sub={sub} />
-                  ))
-                )}
-              </div>
-            )}
-
-            {/* Expired Tab Content */}
-            {activeTab === "expired" && (
-              <div className="space-y-6">
-                {expiredSubscriptions.length === 0 ? (
-                  <div className="py-12 px-6 rounded-3xl bg-muted/30 border border-border text-center flex flex-col items-center">
-                    <div className="w-20 h-20 bg-white dark:bg-black rounded-full flex items-center justify-center shadow-sm mb-4">
-                      <History className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                    <h3 className="text-xl font-display font-bold text-foreground mb-2">
-                      No History
-                    </h3>
-                    <p className="text-muted-foreground text-center">
-                      Your payment and subscription history will appear here.
-                    </p>
-                  </div>
-                ) : (
-                  expiredSubscriptions.map((sub) => (
-                    <ExpiredSubscriptionCard key={sub.id} sub={sub} />
-                  ))
-                )}
-              </div>
-            )}
+        </header>
+      )}
+      <main className="mlm-plans-content">
+        {catalog.mode === "test" && (
+          <p className="mlm-notice mlm-test-notice">
+            TEST MODE · Test purchases do not activate live access.
+          </p>
+        )}
+        {notice && (
+          <p role="status" className="mlm-notice">
+            {notice}
+          </p>
+        )}
+        {error && (
+          <div role="alert" className="mlm-notice mlm-error">
+            {error}
+            <button className="mlm-text-button" onClick={() => reload(true)}>
+              Retry loading
+            </button>
           </div>
         )}
-
-        {(historyData.cursor || legacyData.cursor) && <div className="flex flex-wrap gap-3 mb-6">
-          {historyData.cursor && <button className="text-sm text-accent underline" onClick={() => fetchSubscriptions(false, historyData.cursor)}>Load more payments</button>}
-          {legacyData.cursor && <button className="text-sm text-accent underline" onClick={async () => {
-            try {
-              const value = await payments.legacyHistory(legacyData.cursor);
-              if (currentAccount.current === accountId) setLegacyData((old) => ({ ...value, items: [...old.items, ...value.items] }));
-            } catch (err) { setSubError(paymentMessage(err)); }
-          }}>Load earlier subscriptions</button>}
-        </div>}
-        {/* ── Available Plans and Renewals ── */}
-        {(
-          <div className="mt-12">
-            {/* <div className="mb-7">
-              <p className="text-[11px] font-bold text-accent/80 uppercase tracking-widest mb-1">
-                Unlock More
+        {view === "result" && outcome ? (
+          <section className="mlm-result">
+            <div
+              className={`mlm-result-symbol ${resultPaid ? "is-success" : resultPending ? "is-pending" : "is-failed"}`}
+            >
+              <ResultIcon size={31} />
+            </div>
+            <h1>
+              {resultPaid
+                ? outcome.mode === "test"
+                  ? "Test purchase verified"
+                  : "Your plan is ready"
+                : resultPending
+                  ? "Payment confirmation pending"
+                  : outcome.status === "refunded"
+                    ? "Payment refunded"
+                    : outcome.status === "partially_refunded"
+                      ? "Payment partly refunded"
+                      : outcome.status === "disputed"
+                        ? "Payment under review"
+                        : "Payment didn't complete"}
+            </h1>
+            <p>
+              {resultPaid
+                ? `${outcome.plan?.PlanName || "Your plan"} — payment verified.`
+                : resultPending
+                  ? "If money was debited, check this payment before paying again. You can safely reopen the app and recover this order."
+                  : "Check the payment status before trying again. Contact support with your order ID if money was debited."}
+            </p>
+            <div className="mlm-payment-summary">
+              <p>
+                <span>Plan</span>
+                <strong>{outcome.plan?.PlanName || "—"}</strong>
               </p>
-              <h2 className="text-[22px] font-display font-bold text-foreground">
-                Upgrade Your Plan
-              </h2>
-              <p className="text-[13px] text-muted-foreground mt-1">
-                Choose a plan that fits your workflow
+              <p>
+                <span>{resultPaid ? "Amount paid" : "Order amount"}</span>
+                <strong>{money(outcome.price?.totalPaise)}</strong>
               </p>
-            </div> */}
-
-            {loading ? (
-              <div className="grid gap-4 md:grid-cols-2">
-                <Skeleton className="h-64 rounded-3xl" />
-                <Skeleton className="h-64 rounded-3xl" />
-              </div>
-            ) : error ? (
-              <div className="p-6 rounded-2xl bg-danger/10 border border-danger/20 text-center">
-                <p className="text-danger font-medium">{error}</p>
-                <button onClick={() => fetchPlans(true)} className="mt-3 text-sm underline">Retry loading plans</button>
-              </div>
-            ) : plans.length === 0 ? (
-              <div className=" rounded-2xl w-full flex justify-center items-center h-full text-center">
-                {/* <p className="text-muted-foreground">
-                  No plans currently available.
-                </p> */}
-                {/* <div className="p-1 rounded-2xl text-center"> */}
-                  <img src={subcric} className=" p-2 border border-border/60 rounded-xl  h-full object-contain" alt="Plans Coming Soon" />
-                {/* </div> */}
-              </div>
-            ) : (
-              <div className="grid gap-5 md:grid-cols-2">
-                {plans.map((plan, index) => (
-                  <div
-                    key={plan.planId || index}
-                    onClick={() => handleSlideClick(plan)}
-                    className="group cursor-pointer rounded-[24px] overflow-hidden border border-border/60 hover:border-accent/40 shadow-md hover:shadow-xl transition-all duration-300 relative bg-white dark:bg-[#0f1525]"
+              <p>
+                <span>Order ID</span>
+                <strong className="mlm-break">
+                  {outcome.orderId || outcome.purchaseId || "Pending"}
+                </strong>
+              </p>
+              {resultPaid && (
+                <p>
+                  <span>Access until</span>
+                  <strong>{dateLabel(outcome.subscriptionExpiresAtMs)}</strong>
+                </p>
+              )}
+            </div>
+            <div className="mlm-result-actions">
+              {resultPaid ? (
+                <>
+                  <button className="mlm-primary" onClick={() => setView("my")}>
+                    View my plans
+                  </button>
+                  <button
+                    className="mlm-secondary"
+                    disabled={Boolean(invoiceBusy)}
+                    onClick={() => invoice(outcome.purchaseId)}
                   >
-                    {/* Accent top bar */}
-                    <div
-                      className="absolute top-0 left-0 right-0 h-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                      style={{
-                        background: "linear-gradient(90deg, #2F80EA, #4f6fd0)",
-                      }}
-                    />
-
-                    {plan.image_url ? (
-                      <div className="aspect-[16/9] w-full overflow-hidden relative">
-                        <img
-                          src={plan.image_url}
-                          alt={plan.PlanName}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-                        <div className="absolute bottom-0 left-0 right-0 p-4">
-                          <div className="flex items-end justify-between">
-                            <div>
-                              <h3 className="text-white font-display font-bold text-[18px] mb-0.5">
-                                {plan.PlanName}
-                              </h3>
-                              <p className="text-white/70 text-[12px]">
-                                Tap to view details
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-[10px] text-white/60 mb-0.5">
-                                Price
-                              </p>
-                              <p className="text-[20px] font-bold text-white">
-                                ₹{plan.PlanAmount ?? 0}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="p-5">
-                        <div className="flex items-start justify-between gap-3 mb-4">
-                          <div
-                            className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border border-accent/20"
-                            style={{
-                              background:
-                                "linear-gradient(135deg, rgba(14,36,92,0.12), rgba(79,111,208,0.08))",
-                            }}
-                          >
-                            <svg
-                              width="20"
-                              height="20"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              className="text-accent"
-                            >
-                              <path
-                                d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"
-                                fill="currentColor"
-                              />
-                            </svg>
-                          </div>
-                          <div className="px-2.5 py-1 rounded-full text-[10px] font-bold text-accent bg-accent/8 border border-accent/15">
-                            {serviceLabel(plan.serviceType)}
-                          </div>
-                        </div>
-                        <h3 className="font-display font-bold text-[18px] text-foreground mb-3 group-hover:text-accent transition-colors">
-                          {plan.PlanName || "Premium Plan"}
-                        </h3>
-                        <div className="flex items-end justify-between pt-3 border-t border-border/40">
-                          <div>
-                            <p className="text-[9px] text-muted-foreground/70 uppercase font-bold tracking-widest mb-0.5">
-                              One-time payment
-                            </p>
-                            <p className="text-[26px] font-bold text-accent leading-none">
-                              ₹{plan.PlanAmount ?? 0}
-                            </p>
-                          </div>
-                          <div className="w-9 h-9 rounded-full flex items-center justify-center bg-accent text-white opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 shadow-lg shadow-accent/25">
-                            <svg
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M5 12h14M12 5l7 7-7 7" />
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+                    <Download size={18} />
+                    {invoiceBusy ? "Preparing invoice…" : "Download invoice"}
+                  </button>
+                </>
+              ) : pending ? (
+                <>
+                  <button
+                    className="mlm-primary"
+                    disabled={checking}
+                    onClick={check}
+                  >
+                    {checking ? "Checking…" : "Check payment"}
+                  </button>
+                  <button
+                    className="mlm-secondary"
+                    onClick={() => {
+                      setSelected(pending.plan || pending.checkout?.plan);
+                      setCheckout(true);
+                    }}
+                  >
+                    Resume this checkout
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="mlm-primary"
+                  onClick={() => {
+                    setView("plans");
+                    void reload(true);
+                  }}
+                >
+                  View available plans
+                </button>
+              )}
+              <button
+                className="mlm-text-button"
+                onClick={() => setView("history")}
+              >
+                Purchase history
+              </button>
+            </div>
+          </section>
+        ) : (
+          <>
+            {pending && (
+              <section className="mlm-pending-card">
+                <Clock size={20} />
+                <div>
+                  <h3>Payment confirmation pending</h3>
+                  <p>
+                    {pending.plan?.PlanName || pending.checkout?.plan?.PlanName}{" "}
+                    · Check this order before paying again.
+                  </p>
+                  <button disabled={checking} onClick={check}>
+                    {checking ? "Checking…" : "Check payment"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelected(pending.plan || pending.checkout?.plan);
+                      setCheckout(true);
+                    }}
+                  >
+                    Resume checkout
+                  </button>
+                </div>
+              </section>
             )}
-          </div>
+            {view === "history" ? (
+              <section className="mlm-history-list">
+                {!data.items.length && !loading && (
+                  <p className="mlm-empty">
+                    Your payment history will appear here.
+                  </p>
+                )}
+                {data.items.map((p) => (
+                  <article className="mlm-history-card" key={p.purchaseId}>
+                    <div className="mlm-title-row">
+                      <h3>{p.plan.PlanName}</h3>
+                      <strong>{money(p.price.totalPaise)}</strong>
+                    </div>
+                    <p>
+                      {dateLabel(p.paidAtMs || p.createdAtMs)} ·{" "}
+                      <span className={`mlm-status mlm-status-${p.status}`}>
+                        {p.status.replaceAll("_", " ")}
+                      </span>
+                      {p.mode === "test" ? " · TEST" : ""}
+                    </p>
+                    <p className="mlm-small mlm-break">
+                      {p.orderId || p.purchaseId}
+                    </p>
+                    {[
+                      "paid",
+                      "refunded",
+                      "partially_refunded",
+                      "disputed",
+                    ].includes(p.status) && (
+                      <button
+                        disabled={Boolean(invoiceBusy)}
+                        className="mlm-text-button"
+                        onClick={() => invoice(p.purchaseId)}
+                      >
+                        <Download size={15} />
+                        {invoiceBusy === p.purchaseId
+                          ? "Preparing…"
+                          : "Download invoice"}
+                      </button>
+                    )}
+                    {[
+                      "created",
+                      "pending",
+                      "creating",
+                      "creation_unknown",
+                    ].includes(p.status) && (
+                      <button
+                        className="mlm-text-button"
+                        onClick={() => {
+                          payments.remember(p);
+                          setPending(payments.readPending());
+                          void check();
+                        }}
+                      >
+                        Check payment
+                      </button>
+                    )}
+                  </article>
+                ))}
+                {data.cursor && (
+                  <button className="mlm-secondary" onClick={historyMore}>
+                    Load more payments
+                  </button>
+                )}
+                <button
+                  className="mlm-text-button"
+                  disabled={legacyBusy}
+                  onClick={earlier}
+                >
+                  {legacyBusy
+                    ? "Loading…"
+                    : legacy?.cursor
+                      ? "Load more earlier subscriptions"
+                      : "View earlier subscriptions"}
+                </button>
+                {legacy?.items.map((p) => (
+                  <article className="mlm-history-card" key={p.id}>
+                    <h3>{p.plan}</h3>
+                    <p>Earlier subscription · {p.payment}</p>
+                    <p>{dateLabel(p.expirydate)}</p>
+                  </article>
+                ))}
+              </section>
+            ) : (
+              <>
+                {groups.size > 0 && (
+                  <section className="mlm-active-list">
+                    {[...groups.entries()].map(([id, grants]) => (
+                      <ActiveCard
+                        key={id}
+                        grants={grants}
+                        onInvoice={invoice}
+                        invoiceBusy={invoiceBusy}
+                      />
+                    ))}
+                  </section>
+                )}
+                {loading ? (
+                  <div className="mlm-loading" role="status">
+                    Loading your plans…
+                  </div>
+                ) : data.entitlement && available.length > 0 ? (
+                  <section
+                    aria-label="Available plans"
+                    className="mlm-available-plans"
+                  >
+                    {groups.size > 0 && (
+                      <h2 className="mlm-section-title">AVAILABLE SERVICES</h2>
+                    )}
+                    {available
+                      .filter((p) => p.serviceType === "combo")
+                      .map((p) => (
+                        <PlanCard key={p.planId} plan={p} onChoose={choose} />
+                      ))}
+                    {available.some((p) => p.serviceType !== "combo") && (
+                      <h2 className="mlm-section-heading">
+                        {groups.size
+                          ? "Add another service"
+                          : "Choose your service"}
+                      </h2>
+                    )}
+                    {available
+                      .filter((p) => p.serviceType !== "combo")
+                      .map((p) => (
+                        <PlanCard key={p.planId} plan={p} onChoose={choose} />
+                      ))}
+                    <p className="mlm-catalog-note">
+                      One-time payment, no automatic renewal. GST is calculated
+                      at checkout. You can buy a service again after its plan
+                      expires or credits are used.
+                    </p>
+                  </section>
+                ) : (
+                  !loading &&
+                  !error && (
+                    <p className="mlm-empty">
+                      {groups.size
+                        ? "Your services are already active. Plans become available when a service expires or its credits are used."
+                        : "No plans are published yet."}
+                    </p>
+                  )
+                )}
+                <div className="mlm-action-list">
+                  <button
+                    onClick={() => setView(view === "my" ? "plans" : "my")}
+                  >
+                    <Crown size={20} />
+                    {view === "my" ? "View available plans" : "My plan"}
+                    <ChevronRight size={19} />
+                  </button>
+                  <button onClick={() => setView("history")}>
+                    <History size={20} />
+                    Purchase history
+                    <ChevronRight size={19} />
+                  </button>
+                  <button disabled={loading} onClick={() => reload(true)}>
+                    <RefreshCw size={19} />
+                    Refresh my purchases
+                    <ChevronRight size={19} />
+                  </button>
+                </div>
+              </>
+            )}
+          </>
         )}
-      </div>
-
+      </main>
       <PlanModal
-        openA={openPlanModal}
-        setOpenA={setOpenPlanModal}
-        plan={selectedPlan}
+        plan={selected}
+        openA={details}
+        setOpenA={setDetails}
         onProceedToCheckout={() => {
-          setOpenPlanModal(false);
-          setOpenCheckoutModal(true);
+          setDetails(false);
+          setCheckout(true);
         }}
       />
-
       <CheckoutModal
-        isOpen={openCheckoutModal}
-        setIsOpen={setOpenCheckoutModal}
-        plan={selectedPlan}
-        onBack={() => {
-          setOpenCheckoutModal(false);
-          setOpenPlanModal(true);
+        plan={selected}
+        isOpen={checkout}
+        setIsOpen={setCheckout}
+        onBack={() => setDetails(true)}
+        onPaymentSuccess={onPaid}
+        onPaymentResult={(result) => {
+          setOutcome(result);
+          setView("result");
+          setCheckout(false);
         }}
-        onPaymentSuccess={handlePaymentSuccess}
-        suggestedCoupon={suggestedCoupon}
         onPendingChange={setPending}
+        suggestedCoupon={catalog.suggestedCoupon}
       />
     </div>
   );

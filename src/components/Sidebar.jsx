@@ -35,7 +35,7 @@ const NAV_ITEMS = [
   },
   {
     icon: Gem,
-    label: "My Subscriptions",
+    label: "Plans",
     id: "Subscriptions",
     link: "/subscription",
   },

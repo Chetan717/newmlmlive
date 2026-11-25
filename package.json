@@ -12,7 +12,7 @@
     "start": "vite preview --host",
     "preview": "vite preview --host",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:payments": "node --test tests/payments.test.mjs"
+    "test:payments": "node --test tests/payments.test.mjs tests/planExperience.test.mjs"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.0",
