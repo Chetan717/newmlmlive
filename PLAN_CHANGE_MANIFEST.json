@@ -1,0 +1,60 @@
+{
+  "release": "MLM LIVE Global App Plans — 24 November 2026",
+  "baseline": "Previous company-based plan integration source before this correction",
+  "scope": "One app-wide catalog, purchase/renewal/history/entitlements; safe old checkout and trusted entitlement migration",
+  "unchanged_baseline_files": 427,
+  "modified": [
+    {
+      "path": "PLAN_INTEGRATION_SETUP_HINDI.md",
+      "before_sha256": "3fea4ab5fd6e980ae9348a9dd31bb458936d59027896abc6a97bdda2a43f761e",
+      "after_sha256": "ccff9db5c6a374e2ed6a866dd126a62b57c92275a156c1ab1a3c35de08b52044"
+    },
+    {
+      "path": "src/App.jsx",
+      "before_sha256": "b190d6ab39966811cd6604a29d759628558bbefd5fc72da5cb81ad5a7a1c2df3",
+      "after_sha256": "2a216e05d4bab081d591eca5291935ce39de4717643348db5dfb3cfede5415f7"
+    },
+    {
+      "path": "src/pages/Subscription/CheckoutModal.jsx",
+      "before_sha256": "8f807da6ac6912da5df3c3381b405f00a4ab137c00362dc06067f1c55386e336",
+      "after_sha256": "87ed36411895c2065a2ae9fd0d9e3aa68909101a0e4ed411431baeca6f8dcc8a"
+    },
+    {
+      "path": "src/pages/Subscription/MainSubscription.jsx",
+      "before_sha256": "596d482c8b1751ff24325ac10084c8db6788bf74a26dc51d55b298abecb3bfaf",
+      "after_sha256": "670e508af0a845f82ed140892a3dec854788ba81b574f25355807f802a7c0982"
+    },
+    {
+      "path": "src/services/paymentCheckout.js",
+      "before_sha256": "9478da31917c53fb21a4d9d2c991b117d69e70ea931d36f67993ab30361b1a0c",
+      "after_sha256": "ca8b842319f1e70def6b0a43e1c4dac76add3464a4eadfbd5dae800e3f54b27e"
+    },
+    {
+      "path": "src/services/paymentClientCore.mjs",
+      "before_sha256": "bcfee544ac0cbfe8e19bda5eff2ba2be618038384396ce63ba49c777a7ef6f07",
+      "after_sha256": "ca74f30c4c0f21405de521b67a76d9bea54c3a3a9566297f6616a0a6441cba1e"
+    },
+    {
+      "path": "src/services/paymentService.js",
+      "before_sha256": "9eff10cd555ae59067f964fc979aa1ade7b5fda7c550bc8ab5a4d5f0671a0065",
+      "after_sha256": "d13898d01d84f74df4d4bdbe0e933cf35251ec26cf112388024b17d3a8e63750"
+    },
+    {
+      "path": "tests/payments.test.mjs",
+      "before_sha256": "178dcde804ffad1995d4b79892058972eef86cdfa545027f2dd63c16d5e1fa73",
+      "after_sha256": "b0a04e83a0009639fb2484b4d6ca7ef7c201b015458040925ad673794fafe737"
+    }
+  ],
+  "added": [
+    {
+      "path": "GLOBAL_PLANS_SETUP_HINDI.md",
+      "sha256": "ccff9db5c6a374e2ed6a866dd126a62b57c92275a156c1ab1a3c35de08b52044"
+    },
+    {
+      "path": "GLOBAL_PLANS_VALIDATION.md",
+      "sha256": "fd4ebd0cb47ff627ebe94139635cd7409aaa7f8414ed21f2914bd231e48a4687"
+    }
+  ],
+  "removed": [],
+  "validation": "GLOBAL_PLANS_VALIDATION.md"
+}
