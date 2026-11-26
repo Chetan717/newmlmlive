@@ -24,7 +24,7 @@ export const ALL_TEMPLATE_GRAPHICS_CACHE_TTL_MS = 5 * 60 * 1000;
 const _graphicsCache = new Map();
 const _graphicsRequests = new Map();
 let _graphicsCacheGeneration = 0;
-const GRAPHICS_SESSION_CACHE_PREFIX = "mlmlive_all_template_graphics_v2:";
+const GRAPHICS_SESSION_CACHE_PREFIX = "mlmlive_all_template_graphics_v3:";
 
 async function fetchGeneralTemplatesForType(selectedType) {
   // Every General type is CDN-first. Static bundled JSON is only an emergency
@@ -138,6 +138,7 @@ const normalizeRaw = (data) => ({
   ShowCaseForm: data?.ShowCaseForm,
   serial: data?.serial,
   MainType: data?.MainType,
+  templateAccess: data?.templateAccess === "premium" ? "premium" : "free",
   GraphicsLink: Array.isArray(data?.GraphicsLink) ? data.GraphicsLink : [],
 });
 const normalizeDoc = (doc) => normalizeRaw({ id: doc.id, ...doc.data() });

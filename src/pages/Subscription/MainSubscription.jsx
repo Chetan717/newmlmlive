@@ -11,6 +11,8 @@ import {
   Video,
   X,
 } from "lucide-react";
+import { useLocation, useNavigate } from "react-router";
+import PaymentSheet from "./PaymentSheet";
 import { useAuth } from "../../Auth/AuthContext";
 import { payments, paymentMessage } from "../../services/paymentService";
 import { isPaid, serviceLabel } from "../../services/paymentClientCore.mjs";
@@ -129,6 +131,16 @@ function ActiveCard({ grants, onInvoice, invoiceBusy }) {
   );
 }
 export default function MainSubscription() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [showPremiumPrompt, setShowPremiumPrompt] = useState(false);
+  useEffect(() => {
+    if (!location.state?.premiumPoster) return;
+    setShowPremiumPrompt(true);
+    const { premiumPoster, ...state } = location.state;
+    navigate(location.pathname + location.search + location.hash, { replace: true, state });
+  }, [location, navigate]);
+  const closePremiumPrompt = useCallback(() => setShowPremiumPrompt(false), []);
   const { user } = useAuth(),
     uid = user?.uid,
     owner = useRef(uid),
@@ -382,16 +394,13 @@ export default function MainSubscription() {
                     : "Plans"}
               </h1>
             </div>
-            <p>
-              {view === "plans"
-                ? "Poster designs and video editing, in one place."
-                : view === "my"
-                  ? "Your services, validity and credits."
-                  : "Your verified payments and invoices."}
-            </p>
           </div>
         </header>
       )}
+      <PaymentSheet open={showPremiumPrompt} title="Premium design" onClose={closePremiumPrompt}
+        footer={<button className="mlm-primary" onClick={closePremiumPrompt}>View plans</button>}>
+        <p>Choose a Poster Design or Combo plan to download this premium design.</p>
+      </PaymentSheet>
       <main className="mlm-plans-content">
         {catalog.mode === "test" && (
           <p className="mlm-notice mlm-test-notice">

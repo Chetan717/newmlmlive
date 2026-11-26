@@ -85,7 +85,15 @@ export function createPaymentClient({ call, getUid, storage, now = Date.now, new
     if (inflight.has(key)) return inflight.get(key);
     const promise = call(action, { ...data }).then((value) => {
       assertOwner(owner);
-      if ((revisions.get(owner) || 0) === revision) cache.set(key, { until: now() + ttl, value });
+      if ((revisions.get(owner) || 0) === revision) {
+        cache.set(key, { until: now() + ttl, value });
+        // Catalog and history already return this account's server-verified ledger.
+        if ((action === "paymentCatalog" || action === "paymentHistory") && value.entitlement) {
+          cache.set(`${owner}:${revision}:paymentEntitlement:{}`, {
+            until: now() + 30000, value: { entitlement: value.entitlement },
+          });
+        }
+      }
       return value;
     }).finally(() => inflight.delete(key));
     inflight.set(key, promise);
@@ -141,6 +149,7 @@ export function createPaymentClient({ call, getUid, storage, now = Date.now, new
     return promise;
   }
   return {
+    entitlement: async () => (await cached("paymentEntitlement", 30000)).entitlement,
     catalog: async (force = false) => rememberMode(await cached("paymentCatalog", 5 * 60000, {}, force)),
     history: async (cursor = null, force = false) => rememberMode(await cached("paymentHistory", 30000, { ...(cursor ? { cursor } : {}) }, force)),
     legacyHistory: (cursor = null) => cached("paymentLegacyHistory", 60000, { ...(cursor ? { cursor } : {}) }),

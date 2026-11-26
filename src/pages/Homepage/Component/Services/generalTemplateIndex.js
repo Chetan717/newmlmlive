@@ -28,6 +28,7 @@ function buildIndex(payload) {
       ShowCaseForm: data.ShowCaseForm,
       serial: data.serial,
       MainType: data.MainType,
+      templateAccess: data?.templateAccess === "premium" ? "premium" : "free",
       GraphicsLink: Array.isArray(data.GraphicsLink) ? data.GraphicsLink : [],
       createdAt: data.createdAt,
       subtypeAddedAt: data.subtypeAddedAt,

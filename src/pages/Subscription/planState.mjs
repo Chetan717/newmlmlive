@@ -4,6 +4,22 @@ export function grantAvailable(g, now = Date.now()) {
     ? g.unlimitedDownloads === true || Number(g.remainingDownloads) > 0
     : g.remainingCredits == null || Number(g.remainingCredits) > 0;
 }
+// Free designs use the tier carried by the catalog. Only a premium export asks
+// the existing authenticated payment service for the current account's grants.
+export async function canExportPoster(access, launched, readEntitlement) {
+  if (!launched || access !== "premium") return true;
+  const entitlement = await readEntitlement();
+  if (!Array.isArray(entitlement?.grants) || !entitlement.services?.poster) {
+    throw new Error("Poster plan could not be verified.");
+  }
+  const poster = entitlement.services.poster;
+  return poster.status === "active" && entitlement.grants.some(grant =>
+    grant.purchaseId === poster.currentPurchaseId &&
+    (grant.serviceType || "poster") === "poster" &&
+    grant.startsAtMs <= Date.now() && grantAvailable(grant)
+  );
+}
+
 export function eligiblePlans(plans, entitlement, now = Date.now()) {
   const held = new Set(
     (entitlement?.grants || [])

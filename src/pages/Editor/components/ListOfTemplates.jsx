@@ -23,6 +23,7 @@ import {
   clearAllTemplateGraphicsCache,
 } from "../../Homepage/Component/Services/Alltemplateservice";
 import {
+  getTemplateCatalogVersion,
   fetchGeneralMasterCatalog,
   fetchGeneralTypeCatalog,
   fetchMlmTypeCatalog,
@@ -51,6 +52,8 @@ const BATCH_SIZE = 16;
 
 const PRESET_VIDEO_ITEMS = [];
 const _editorTemplateCache = new Map();
+const premiumLaunched = import.meta.env.VITE_PREMIUM_POSTER_ENABLED === "true";
+const ACCESS_CACHE_MS = 5 * 60 * 1000;
 const _preloadedCanvasAssets = new Set();
 const _preloadingCanvasAssets = new Set();
 
@@ -85,7 +88,7 @@ function preloadCanvasAsset(item) {
   image.src = src;
 }
 
-function readEditorTemplateSeed({ type, subType, mainType, companyId }) {
+function readEditorTemplateSeed({ type, subType, mainType, companyId, templateId, refresh }) {
   try {
     const raw = sessionStorage.getItem(EDITOR_TEMPLATE_SEED_KEY);
 
@@ -101,7 +104,9 @@ function readEditorTemplateSeed({ type, subType, mainType, companyId }) {
       companyId,
     });
 
-    if (!sameSelection || !Array.isArray(seed?.items)) {
+    const staleAccess = premiumLaunched && (refresh || !seed?.createdAtMs ||
+      Date.now() - seed.createdAtMs >= ACCESS_CACHE_MS || !["free", "premium"].includes(seed.templateAccess));
+    if (!sameSelection || staleAccess || (templateId && seed.templateId !== templateId) || !Array.isArray(seed?.items)) {
       return { items: [], selectedGraphicKey: "" };
     }
 
@@ -112,6 +117,7 @@ function readEditorTemplateSeed({ type, subType, mainType, companyId }) {
         _template: {
           id: seed.templateId || "",
           serial: seed.serial || 0,
+          templateAccess: seed.templateAccess,
           MainType: seed.templateMainType || seed.mainType || "",
           SelectType: seed.templateType || seed.type || "",
           type: seed.templateType || seed.type || "",
@@ -170,7 +176,7 @@ function cleanItem(item) {
   if (!item) return null;
 
   const { _template, ...clean } = item;
-  return clean;
+  return { ...clean, templateAccess: _template?.templateAccess === "premium" ? "premium" : "free" };
 }
 
 const SHIMMER_BG = {
@@ -581,6 +587,8 @@ export default function ListOfTemplates({
       const fetchSubType = isEverydayMoments ? "" : filterSubType;
 
       const editorSeed = readEditorTemplateSeed({
+        templateId: selType?.id,
+        refresh: Boolean(pendingRefreshRef.current),
         type: filterType,
         subType: filterSubType,
         mainType: selType?.MainType,
@@ -637,10 +645,6 @@ export default function ListOfTemplates({
       // the editor. This keeps the editor scoped to one festival card and
       // avoids hundreds/thousands of unrelated graphics and Firestore reads.
       if (filterType === "Festival" && seededItems.length > 0) {
-        const festivalCacheKey = `${filterType}__${filterSubType}__FestivalSelected__${filterCompanyId}__${meetingHostMode}__${closeFilter}__${selType?.id || ""}`;
-
-        _editorTemplateCache.set(festivalCacheKey, [...seededItems]);
-
         finishRequestedRefresh();
         return;
       }
@@ -656,8 +660,14 @@ export default function ListOfTemplates({
 
       const cacheKey = `${filterType}__${fetchSubType}__${cacheSource}__${filterCompanyId}__${meetingHostMode}__${closeFilter}__${cacheSelectionId}`;
 
-      if (_editorTemplateCache?.has(cacheKey)) {
-        const cachedItems = _editorTemplateCache.get(cacheKey);
+      const version = premiumLaunched ? await getTemplateCatalogVersion() : "";
+      const cached = _editorTemplateCache.get(cacheKey);
+      const seedTemplate = seededItems[0]?._template;
+      const changedTier = seedTemplate && cached?.items.some(item =>
+        item._template?.id === seedTemplate.id &&
+        (item._template?.templateAccess || "free") !== seedTemplate.templateAccess);
+      if (cached && (!premiumLaunched || (cached.version === version && Date.now() < cached.until && !changedTier))) {
+        const cachedItems = cached.items;
 
         const preferredSelectionKey =
           selectedKeyRef.current || requestedSelectionKey;
@@ -965,7 +975,7 @@ export default function ListOfTemplates({
 
         const cachedFilteredItems = [...filteredItems];
 
-        _editorTemplateCache.set(cacheKey, cachedFilteredItems);
+        _editorTemplateCache.set(cacheKey, { items: cachedFilteredItems, until: Date.now() + ACCESS_CACHE_MS, version });
 
         const preferredSelectionKey =
           selectedKeyRef.current || requestedSelectionKey;

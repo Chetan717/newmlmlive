@@ -6,6 +6,9 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import { useNavigate } from "react-router";
+import { payments } from "../../services/paymentService";
+import { canExportPoster } from "../Subscription/planState.mjs";
 import { getUser } from "../../utils/authStorage";
 import { Stage, Layer, Text, Image, Transformer, Group } from "react-konva";
 import Konva from "konva";
@@ -41,8 +44,6 @@ import {
   query,
   where,
   getDocs,
-  doc,
-  updateDoc,
   orderBy,
   limit,
   startAfter,
@@ -113,6 +114,7 @@ const readPreviewSeedGraphic = () => {
     ...graphic,
     _template: {
       id: seed?.templateId || "",
+      templateAccess: seed?.templateAccess,
       serial: seed?.serial || 0,
       MainType: seed?.templateMainType || seed?.mainType || "",
       SelectType: seed?.templateType || seed?.type || "",
@@ -433,28 +435,6 @@ const NO_FOOTER_TYPES = new Set([
   "Training",
 ]);
 
-const parseExpiryDate = (dateStr) => {
-  if (!dateStr) return null;
-  const months = {
-    Jan: 0,
-    Feb: 1,
-    Mar: 2,
-    Apr: 3,
-    May: 4,
-    Jun: 5,
-    Jul: 6,
-    Aug: 7,
-    Sep: 8,
-    Oct: 9,
-    Nov: 10,
-    Dec: 11,
-  };
-  const [day, mon, year] = dateStr.split(" ");
-  const month = months[mon];
-  if (month === undefined) return null;
-  return new Date(Number(year), month, Number(day), 23, 59, 59);
-};
-
 const AMOUNT_GRADIENT_OPTIONS = [
   {
     id: "gold1",
@@ -702,6 +682,7 @@ function GeneralEditPage({
   previewMeetingData = undefined,
   previewSize = null,
 }) {
+  const navigate = useNavigate();
   const stageRef = useRef(null);
   const videoElRef = useRef(null);
   const profileImageRef = useRef(null);
@@ -760,7 +741,11 @@ function GeneralEditPage({
   const [selectedImageType, setSelectedImageType] = useState(null);
   const [toolbarPos, setToolbarPos] = useState({ x: 0, y: 0, width: 0 });
 
-  const [activeSub, setActiveSub] = useState(null);
+  const selectedForExport = useRef(null);
+  useLayoutEffect(() => {
+    selectedForExport.current = selected;
+    return () => { selectedForExport.current = null; };
+  }, [selected]);
   const [userData, setUserData] = useState(null);
   const [subLoading, setSubLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
@@ -834,6 +819,7 @@ function GeneralEditPage({
   });
   const [musicModalOpen, setMusicModalOpen] = useState(false);
   const [captionModalOpen, setCaptionModalOpen] = useState(false);
+  const [checkingPoster, setCheckingPoster] = useState(false);
   const [videoPlaying, setVideoPlaying] = useState(false);
   const [presetLoadingUrl, setPresetLoadingUrl] = useState(null);
   const [deviceLoading, setDeviceLoading] = useState(false);
@@ -1448,38 +1434,20 @@ function GeneralEditPage({
     }
   }, [middaleImage, previewFormData, setmiddaleImage]);
 
-  const fetchSubscriptionAndUser = useCallback(async () => {
+  const fetchDownloadUser = useCallback(async () => {
     try {
       setSubLoading(true);
       const user = getUser();
       if (!user) return;
       const mobileNo = user?.mobileNo;
       if (!mobileNo) return;
-      const activeQuery = query(
-        collection(db, COLLECTIONS.SUBSCRIPTION),
-        where("mobileNo", "==", mobileNo),
-        where("Active", "==", true),
-        where("Expire", "==", false),
-      );
       const userQuery = query(
         collection(db, COLLECTIONS.USERS),
         where("mobileNo", "==", mobileNo),
       );
-      const [activeResult, userResult] = await Promise.allSettled([
-        getDocs(activeQuery),
-        getDocs(userQuery),
-      ]);
-      if (activeResult.status === "fulfilled") {
-        const activeSubs = activeResult.value.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
-          .sort(
-            (a, b) =>
-              (b.PurchaseAt?.seconds ?? 0) - (a.PurchaseAt?.seconds ?? 0),
-          );
-        setActiveSub(activeSubs[0] || null);
-      }
-      if (userResult.status === "fulfilled" && !userResult.value.empty) {
-        const userDocument = userResult.value.docs[0];
+      const userResult = await getDocs(userQuery);
+      if (!userResult.empty) {
+        const userDocument = userResult.docs[0];
         setUserData({
           ...userDocument.data(),
           id: userDocument.id,
@@ -1494,8 +1462,8 @@ function GeneralEditPage({
 
   useEffect(() => {
     if (previewOnly) return;
-    fetchSubscriptionAndUser();
-  }, [fetchSubscriptionAndUser, previewOnly]);
+    fetchDownloadUser();
+  }, [fetchDownloadUser, previewOnly]);
 
   const getSelectedImageRef = () => {
     if (selectedImageType === "profile") return profileImageRef.current;
@@ -2027,11 +1995,31 @@ function GeneralEditPage({
   const [meetl] = useImage(meet, "anonymous");
   const [locl] = useImage(Loc, "anonymous");
 
-  const planDownloads = activeSub?.download ?? 0;
-  const referCredits = userData?.referCredit ?? 0;
-  const totalDownloadsAvailable = planDownloads + referCredits;
+  const checkPosterAccess = async () => {
+    if (!selected) return false;
+    try {
+      const allowed = await canExportPoster(selected.templateAccess,
+        import.meta.env.VITE_PREMIUM_POSTER_ENABLED === "true", payments.entitlement);
+      if (selectedForExport.current !== selected) return false;
+      if (!allowed) navigate("/subscription", { state: { premiumPoster: true } });
+      return allowed;
+    } catch {
+      showToast("Could not verify your Poster plan. Check your connection and try again.", "error");
+      return false;
+    }
+  };
+
+  const openDownload = async () => {
+    setCheckingPoster(true);
+    try {
+      if (await checkPosterAccess()) setCaptionModalOpen(true);
+    } finally {
+      setCheckingPoster(false);
+    }
+  };
 
   const reserveDownloadSlot = async () => {
+    if (!await checkPosterAccess()) return null;
     const storedUser = getUser() || {};
     const reservation = await reserveDailyDownload({
       userDocumentId: userData?._documentId || userData?.id,
@@ -2043,79 +2031,16 @@ function GeneralEditPage({
         "current-user",
     });
 
-    // if (!reservation.allowed) {
-    //   showToast(
-    //     `Daily download limit reached. You can download up to ${DAILY_DOWNLOAD_LIMIT} images or videos per day. Please try again tomorrow.`,
-    //     "error",
-    //     5000,
-    //   );
-    //   return null;
-    // }
-
+    if (!reservation.allowed) {
+      showToast(`Daily download limit reached (${DAILY_DOWNLOAD_LIMIT}). Please try again tomorrow.`, "error", 5000);
+      return null;
+    }
+    if (selectedForExport.current !== selected) {
+      void releaseDailyDownload(reservation);
+      return null;
+    }
     return reservation;
   };
-
-  // const checkCredits = (cost) => {
-  // if (!activeSub) {
-  //   showToast(
-  //     "No active subscription found. Please subscribe to export.", {change for free}
-  //     "error",
-  //   );
-  //   return false;
-  // }
-  // const expiry = parseExpiryDate(activeSub.expirydate);
-  // if (expiry && new Date() > expiry) {
-  //   showToast(
-  //     "Your subscription has expired. Please renew to continue.", {change for free}
-  //     "error",
-  //   );
-  //   return false;
-  // }
-  //   if (totalDownloadsAvailable < cost) {
-  //     showToast(
-  //       `This export needs ${cost} credit${cost > 1 ? "s" : ""}, but you have ${totalDownloadsAvailable}. Please renew your plan.`,
-  //       "error",
-  //       4000,
-  //     );
-  //     return false; {change for free}
-  //   }
-  //   return true;
-  // };
-
-  // const deductCredits = async (cost, prefix = "Downloaded!") => {
-  //   let remaining = cost;
-  //   const fromPlan = Math.min(planDownloads, remaining);
-  //   const newPlan = planDownloads - fromPlan;
-  //   remaining -= fromPlan;
-  //   const fromRefer = Math.min(referCredits, remaining);
-  //   const newCredits = referCredits - fromRefer;
-  //   const totalAfter = newPlan + newCredits;
-  //   const planExhausted = newPlan === 0 && newCredits === 0;
-  //   if (fromPlan > 0) {
-  //     const subRef = doc(db, "subscription", activeSub.id);
-  //     await updateDoc(subRef, {
-  //       download: newPlan,
-  //       ...(planExhausted ? { Active: false, Expire: true } : {}),
-  //     });
-  //     setActiveSub((prev) => ({
-  //       ...prev,
-  //       download: newPlan,
-  //       ...(planExhausted ? { Active: false, Expire: true } : {}),
-  //     }));
-  //   }
-  //   if (fromRefer > 0) {
-  //     const userRef = doc(db, "users", userData.id);
-  //     await updateDoc(userRef, { referCredit: newCredits });
-  //     setUserData((prev) => ({ ...prev, referCredit: newCredits }));
-  //   }
-  //   if (totalAfter === 0)
-  //     showToast(`${prefix} No download credits remaining.`, "error", 4000);
-  //   else
-  //     showToast(
-  //       `${prefix} ${totalAfter} credit${totalAfter > 1 ? "s" : ""} remaining.`,
-  //       "success",
-  //     );
-  // }; {change for free}
 
   const handleExport = async () => {
     if (exportInProgressRef.current) return;
@@ -2170,6 +2095,7 @@ function GeneralEditPage({
         isNativeWebView,
       });
 
+      if (selectedForExport.current !== selected) throw new Error("Design changed during export.");
       const uri = stage.toDataURL({
         pixelRatio: exportPixelRatio,
         mimeType: "image/png",
@@ -2339,6 +2265,7 @@ function GeneralEditPage({
       setProgressTarget(97);
       setProgressLabel("Sending to device...");
 
+      if (selectedForExport.current !== selected) throw new Error("Design changed during export.");
       const fileName = `mlmbooster_${Date.now()}.webm`;
       if (window.ReactNativeWebView) {
         const base64 = await new Promise((res, rej) => {
@@ -2828,6 +2755,7 @@ function GeneralEditPage({
       try {
         await ffmpeg.deleteFile("output.mp4");
       } catch (_) {}
+      if (selectedForExport.current !== selected) throw new Error("Design changed during export.");
       const fileName = `mlmbooster_${Date.now()}.mp4`;
       if (window.ReactNativeWebView) {
         setProgressLabel("Sending to device...");
@@ -2965,7 +2893,7 @@ function GeneralEditPage({
     // return `Download`;
   };
 
-  const canExport = !subLoading && !exportLoading && !isVideoUnavailable;
+  const canExport = !subLoading && !exportLoading && !isVideoUnavailable && Boolean(selected);
   // activeSub &&
   // totalDownloadsAvailable >= exportCost; {change for free}
 
@@ -5152,8 +5080,9 @@ function GeneralEditPage({
                 type="button"
                 title="Download"
                 aria-label="Download"
-                onClick={() => setCaptionModalOpen(true)}
-                disabled={!canExport || musicExporting}
+                onClick={openDownload}
+                aria-busy={checkingPoster}
+                disabled={!canExport || musicExporting || checkingPoster}
                 className="flex h-11 w-11 items-center justify-center rounded-full bg-[#2F80EA] text-white shadow-[0_10px_22px_rgba(44,115,232,0.28)] transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <svg
@@ -5664,7 +5593,7 @@ function GeneralEditPage({
             </div>
           )}
 
-          <div className="w-full lg:w-1/3 flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div inert={exportLoading || musicExporting} className="w-full lg:w-1/3 flex-1 min-h-0 flex flex-col overflow-hidden">
             <ListOfTemplates
               selected={selected}
               setSelected={setSelected}

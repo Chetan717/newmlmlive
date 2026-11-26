@@ -6,7 +6,7 @@ import { fetchFestivalCatalog } from "./templateCdnService";
 // 5-minute memory + same-tab session cache; explicit refresh clears both.
 const _mem = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const SESSION_CACHE_PREFIX = "mlmlive_festival_v2:";
+const SESSION_CACHE_PREFIX = "mlmlive_festival_v3:";
 
 function readCache(date) {
   if (_mem.has(date)) {
@@ -65,6 +65,7 @@ export const Festival_template = async (Selected_date, options = {}) => {
         Subtype: data.Subtype || "",
         ShowCaseForm: data.ShowCaseForm,
         serial: data.serial,
+        templateAccess: data?.templateAccess === "premium" ? "premium" : "free",
         GraphicsLink: Array.isArray(data.GraphicsLink) ? data.GraphicsLink.filter(Boolean) : [],
       }));
       writeCache(Selected_date, templates);
@@ -94,6 +95,7 @@ export const Festival_template = async (Selected_date, options = {}) => {
         Subtype: data.Subtype || "",
         ShowCaseForm: data?.ShowCaseForm,
         serial: data?.serial,
+        templateAccess: data?.templateAccess === "premium" ? "premium" : "free",
         GraphicsLink: Array.isArray(data?.GraphicsLink) ? data.GraphicsLink.filter(Boolean) : [],
       };
     });

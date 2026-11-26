@@ -20,7 +20,7 @@ test("successful Editor image export uses the immutable Firestore document id", 
   assert.doesNotMatch(service, /getDoc|getDocs|collection\(|query\(|where\(/);
 
   assert.match(editor, /\.\.\.userDocument\.data\(\),\s*id:\s*userDocument\.id,\s*_documentId:\s*userDocument\.id/s);
-  assert.match(editor, /Promise\.allSettled/);
+  assert.doesNotMatch(editor, /getDocs\(activeQuery\)|collection\(db, COLLECTIONS\.SUBSCRIPTION\)/);
   assert.match(imageExport, /userDocumentId:\s*userData\?\._documentId\s*\|\|\s*userData\?\.id/);
   assert.ok(imageExport.indexOf("recordImageDownload") > imageExport.indexOf("link.click()"));
   assert.ok(imageExport.indexOf("recordImageDownload") < imageExport.indexOf("catch (err)"));

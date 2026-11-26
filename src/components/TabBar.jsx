@@ -87,11 +87,10 @@ export default function TabBar() {
 
   const hide = ["/editor", "/Editor", "/selectcomp", "/mlmform", "/mlmprofile"].includes(location.pathname) || (location.pathname.startsWith("/profile/") && location.pathname !== "/profile");
   if (hide) return null;
-  const plansPage = location.pathname === "/subscription";
 
   return (
-    <div className={`md:hidden fixed z-50 ${plansPage ? "bottom-3 left-4 right-4" : "bottom-0 left-0 right-0"}`}>
-      <div className={`absolute inset-0 bg-background/95 backdrop-blur-2xl border border-border/60 ${plansPage ? "rounded-full shadow-lg" : "rounded-t-2xl"}`} />
+    <div className="md:hidden fixed z-50 bottom-0 left-0 right-0">
+      <div className="absolute inset-0 bg-background/95 backdrop-blur-2xl border border-border/60 rounded-t-2xl" />
 
       <div className="relative flex items-stretch h-[58px] px-1">
         {TABS.map(({ label, path, Icon }) => {

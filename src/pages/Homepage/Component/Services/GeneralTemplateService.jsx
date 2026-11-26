@@ -71,7 +71,7 @@ export const TEMPLATE_GROUP_COUNT = TYPE_GROUPS.length;
 const _cache = new Map();
 let _cacheGeneration = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const SESSION_CACHE_PREFIX = "mlmlive_home_templates_v2:";
+const SESSION_CACHE_PREFIX = "mlmlive_home_templates_v3:";
 
 function readSessionCache(cacheKey) {
   try {
@@ -128,6 +128,7 @@ const normalizeTemplate = (data, id = data?.id) => ({
   MainType: data?.MainType,
   Company: data?.Company || data?.company || "",
   image: data?.Showcase_url || data?.image || "",
+  templateAccess: data?.templateAccess === "premium" ? "premium" : "free",
   GraphicsLink: Array.isArray(data?.GraphicsLink) ? data.GraphicsLink : [],
   type: data?.SelectType || data?.type,
   Subtype: data?.Subtype,

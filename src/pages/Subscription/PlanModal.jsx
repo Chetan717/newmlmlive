@@ -22,6 +22,7 @@ export function PlanModal({ plan, openA, setOpenA, onProceedToCheckout }) {
         </button>
       }
     >
+      {plan.image_url && <img className="mlm-detail-image" src={plan.image_url} alt={plan.PlanName} />}
       <div className="mlm-detail-summary">
         <span className="mlm-service-icon">
           <Icon size={24} />

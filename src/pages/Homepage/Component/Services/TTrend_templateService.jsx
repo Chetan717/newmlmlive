@@ -7,6 +7,7 @@ function mapDoc(doc) {
   const data = doc.data();
   return {
     id: doc.id,
+    templateAccess: data?.templateAccess === "premium" ? "premium" : "free",
     image: data?.Showcase_url || "",
     company: data?.Company || "",
     MainType: data?.MainType || "",
@@ -27,6 +28,7 @@ function mapRaw(data) {
     ShowCaseForm: data?.ShowCaseForm,
     serial: data?.serial,
     Subtype: data?.Subtype || "",
+    templateAccess: data?.templateAccess === "premium" ? "premium" : "free",
     GraphicsLink: Array.isArray(data?.GraphicsLink) ? data.GraphicsLink : [],
   };
 }
@@ -37,7 +39,7 @@ let _cacheTs = 0;
 let _cacheDate = "";
 let _cacheGeneration = 0;
 const CACHE_TTL = 10 * 60 * 1000;
-const SESSION_CACHE_PREFIX = "mlmlive_trending_v2:";
+const SESSION_CACHE_PREFIX = "mlmlive_trending_v3:";
 
 export const TTrend_templateService = async (companyName) => {
   const requestedCompany = companyName || "";

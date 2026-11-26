@@ -55,8 +55,10 @@
   color: white;
   position: relative;
   overflow: hidden;
-  min-height: 165px;
-  padding: 45px 20px 40px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
 }
 .mlm-plans-header:after {
   content: "";
@@ -70,6 +72,7 @@
   pointer-events: none;
 }
 .mlm-header-content {
+  width: 100%;
   max-width: 720px;
   margin: auto;
   position: relative;
@@ -77,12 +80,15 @@
 }
 .mlm-plans-header h1 {
   font-weight: 700;
-  font-size: 24px;
+  font-size: 18px;
 }
-.mlm-plans-header p {
-  color: #dae8ff;
-  margin-top: 16px;
-  font-size: 14px;
+.mlm-detail-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 45dvh;
+  object-fit: contain;
+  margin-bottom: 16px;
 }
 .mlm-title-row {
   display: flex;
@@ -678,9 +684,6 @@
 @media (min-width: 600px) {
   .mlm-plans-content {
     padding: 24px;
-  }
-  .mlm-plans-header {
-    padding-top: 42px;
   }
   .mlm-plan-card {
     padding: 22px;
