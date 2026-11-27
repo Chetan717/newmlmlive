@@ -1,3 +1,4 @@
+import { progressBytes } from "./uploadProgress.js";
 import { httpsCallable, getFunctions } from "firebase/functions";
 import { app, auth } from "../../Firebase";
 const region = getFunctions(app, "asia-south1");
@@ -202,7 +203,7 @@ export async function upload(draft, parentSignal, progress, state) {
     let bytes = 0;
     for (let n = 1; n <= count; n++)
       if (done.has(n)) bytes += Math.min(partSize, f.size - (n - 1) * partSize);
-    show(index, bytes);
+    show(index, progressBytes(bytes, 0, f.size));
     for (let part = 1; part <= count; part++) {
       if (done.has(part)) continue;
       if (!f.blob)
@@ -212,15 +213,18 @@ export async function upload(draft, parentSignal, progress, state) {
         async () => {
           const { url } = await media("part", { ...params, part });
           state("Uploading clip " + (index + 1) + " of " + draft.files.length);
-          await put(url, chunk, signal, (n) => show(index, bytes + n));
+          show(index, progressBytes(bytes, 0, f.size));
+          await put(url, chunk, signal, (n) => show(index, progressBytes(bytes, n, f.size)));
         },
         signal,
         state,
       );
       bytes += chunk.size;
-      show(index, bytes);
+      show(index, progressBytes(bytes, 0, f.size));
     }
+    state("Finalizing clip " + (index + 1));
     await retry(() => media("finish", params), signal, state);
+    show(index, f.size);
   }
   const queue = draft.files.keys();
   const jobs = Array.from(

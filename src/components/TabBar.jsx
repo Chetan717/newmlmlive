@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { House, Gem, Person } from "@gravity-ui/icons";
 import { useAppLanguage } from "../i18n/AppLanguageContext";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Video } from "lucide-react";
 import { db } from "../Firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { COLLECTIONS } from "../collections";
@@ -24,6 +24,7 @@ const TABS = [
     path: "/ask-ai",
     Icon: ({ className }) => <Sparkles className={className} />,
   },
+  { label: "Video Service", path: "/video-editing", Icon: Video },
   {
     label: "My Profile",
     path: "/profile",
@@ -127,6 +128,7 @@ export default function TabBar() {
                     <Icon className="w-[18px] h-[18px]" />
                   </div>
 
+                  {path === "/video-editing" && <span className="absolute -top-2 -right-2 rounded-full bg-red-500 px-1 text-[7px] font-bold leading-[12px] text-white">NEW</span>}
                   {/* Reporting: numbered badge */}
                   {isReporting && badgeCount > 0 && (
                     <span

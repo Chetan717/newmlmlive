@@ -434,7 +434,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/video-editing" element={<ProtectedRoute><Layout><VideoService /></Layout></ProtectedRoute>} />
+          <Route path="/video-editing" element={<ProtectedRoute><Layout hideHeader><VideoService /></Layout></ProtectedRoute>} />
           <Route
             path="/subscription"
             element={

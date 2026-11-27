@@ -10,7 +10,34 @@ import {
   clearDraft,
 } from "./uploads";
 import { getMlmProfileFromStorage } from "../../utils/companyStorage";
-function Preview({ file }) {
+// Read a tiny local frame only; no video downloads or remote player preload.
+function previewInfo(file) {
+  return new Promise(resolve => {
+    const v = document.createElement("video"), url = URL.createObjectURL(file);
+    let finished = false, duration = 0;
+    const done = (thumbnail = "") => {
+      if(finished) return; finished = true; clearTimeout(timer);
+      v.onloadeddata = v.onloadedmetadata = v.onseeked = v.onerror = null;
+      v.removeAttribute("src"); v.load(); URL.revokeObjectURL(url);
+      resolve({thumbnail, duration});
+    };
+    const timer = setTimeout(() => done(), 2500);
+    const capture = () => {
+      try {
+        if(!v.videoWidth || !v.videoHeight) return done();
+        const canvas=document.createElement("canvas"); canvas.width=160;canvas.height=Math.max(1,Math.round(160*v.videoHeight/v.videoWidth));
+        if(canvas.height>240) {canvas.height=240;canvas.width=Math.max(1,Math.round(240*v.videoWidth/v.videoHeight));}
+        canvas.getContext("2d").drawImage(v,0,0,canvas.width,canvas.height);
+        const image=canvas.toDataURL("image/jpeg",.55);done(image.length<=12000?image:"");
+      } catch {done();}
+    };
+    v.muted=true;v.playsInline=true;v.preload="auto";
+    v.onloadedmetadata=()=>{duration=Number.isFinite(v.duration)?Math.round(v.duration):0;};
+    v.onloadeddata=capture;v.onerror=()=>done();v.src=url;
+  });
+}
+function Preview({ file, thumbnail, length }) {
+  const [playing, setPlaying] = useState(false);
   const [url, setUrl] = useState(""),
     [duration, setDuration] = useState(0);
   useEffect(() => {
@@ -20,18 +47,20 @@ function Preview({ file }) {
     return () => URL.revokeObjectURL(url);
   }, [file]);
   return url ? (
-    <div>
-      <video
+    <div className="ve-local-preview">
+      {thumbnail && <img src={thumbnail} alt="Raw clip preview" width="72" height="48"/>}
+      <button type="button" onClick={() => setPlaying(!playing)}>{playing ? "Close preview" : "▶ Preview"}</button>
+      {playing && <video
         controls
         preload="metadata"
         src={url}
         onLoadedMetadata={(e) => setDuration(e.target.duration)}
-      />
-      {Number.isFinite(duration) && duration > 0 && (
-        <small> {Math.round(duration)} sec</small>
+      />}
+      {(duration > 0 || length > 0) && (
+        <small> {Math.round(duration || length)} sec</small>
       )}
     </div>
-  ) : null;
+  ) : thumbnail ? <div className="ve-local-preview"><img src={thumbnail} alt="Raw clip preview" width="72" height="48"/><small>Select the original clip to preview again.</small></div> : null;
 }
 function typeOf(f) {
   return (
@@ -101,6 +130,7 @@ export default function NewRequest({ info, onDone, onClose }) {
           type: typeOf(f),
           sig: await signature(f),
           blob: f,
+          ...await previewInfo(f),
         })),
       );
       if (draft.id) {
@@ -153,6 +183,8 @@ export default function NewRequest({ info, onDone, onClose }) {
       const { files, ...fields } = d;
       const res = await request("draft", {
         ...fields,
+        thumbnail: files[0]?.thumbnail || "",
+        duration: files[0]?.duration || 0,
         files: files.map(({ name, size, type }) => ({ name, size, type })),
       });
       Object.assign(d, res);
@@ -218,7 +250,7 @@ export default function NewRequest({ info, onDone, onClose }) {
             <>
               <fieldset disabled={busy || !!draft.id}>
                 <label>
-                  Video category{" "}
+                  Video category *{" "}
                   <select
                     value={draft.category}
                     onChange={(e) => patch("category", e.target.value)}
@@ -240,7 +272,7 @@ export default function NewRequest({ info, onDone, onClose }) {
                   </label>
                 )}
                 <label>
-                  Describe How to Edit Your Video
+                  Editing instructions *
                   <textarea
                     maxLength={5000}
                     value={draft.instructions}
@@ -266,12 +298,12 @@ export default function NewRequest({ info, onDone, onClose }) {
                 1–5 clips · 200 MB per clip · 1 credit for the approved video
               </small>
               {draft.files.map((f, i) => (
-                <article key={i}>
-                  <Preview file={f.blob} />
+                <article key={i} className="ve-upload-row">
+                  <Preview file={f.blob} thumbnail={f.thumbnail} length={f.duration} />
                   <p>
                     {i + 1}. {f.name} · {(f.size / 1e6).toFixed(1)} MB
                   </p>
-                  <progress value={bytes[i] || 0} max={f.size} />
+                  {(busy || draft.id || bytes[i] > 0) && <div className="ve-progress"><small>{Math.floor(100 * (bytes[i] || 0) / f.size)}% · {bytes[i] === f.size ? "Uploaded" : busy ? "Uploading / finalizing" : "Ready to resume"}</small><progress value={bytes[i] || 0} max={f.size} /></div>}
                   {!draft.id && !busy && (
                     <div className="actions">
                       <button
@@ -298,7 +330,7 @@ export default function NewRequest({ info, onDone, onClose }) {
                   )}
                 </article>
               ))}
-              {total > 0 && (
+              {draft.files.length > 1 && total > 0 && (busy || draft.id) && (
                 <label>
                   Overall progress · {Math.floor((uploaded / total) * 100)}%
                   <progress value={uploaded} max={total} />
