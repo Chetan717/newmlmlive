@@ -1,27 +1,19 @@
-# MLM LIVE — Modern Plans UI + golden crown shimmer
+# MLM LIVE — Clean Plans UI v2 + four-tab navigation
 
-## Apply
-1. Back up the current **Web App** project. The baseline used is `MLMLIVE_WEBAPP_UPDATED.zip`.
-2. Extract this patch into the web app project root, maintaining the `src/` paths. Overwrite only the included files. The earlier modern video service patch is not touched.
-3. Run `npm ci` if dependencies are not already installed, then `npm run dev` to preview the Plans tab. Run `npm run build` and redeploy the Web App on Vercel after testing.
+This cumulative patch replaces the previous MLMLIVE_MODERN_PLANS_UI_PATCH. Extract it into the existing Web App project root and overwrite the included paths. It includes the original modern checkout and crown artwork files, so it works whether or not the earlier Plans patch was already applied. It does not overwrite the Video Editing UI patch.
 
-## Files
-- `src/pages/Subscription/MainSubscription.jsx` — blue hero, combo card, separate poster/video cards, actual allowance and price, active plans, existing history and invoice controls.
-- `src/pages/Subscription/PlanModal.jsx` — redesigned plan details.
-- `src/pages/Subscription/CheckoutModal.jsx` — secure checkout with current server quote, coupon, GST and Razorpay, no new payment logic.
-- `src/pages/Subscription/PaymentSheet.jsx` — opt-in full-screen mobile variant; existing generic sheet remains available. Keyboard handling, pending-payment controls and focus restoration remain unchanged.
-- `src/pages/Subscription/PlanArtwork.jsx` — lightweight decorative vector artwork using the existing lucide-react package.
-- `src/pages/Subscription/plans.css` — scoped responsive styles matching #2f80ea, cream combo, lavender poster, light blue video, rounded cards and buttons.
-- `src/components/TabBar.jsx`, `src/components/PlansCrown.css` — gold crown above Plans label with shimmer, selected blue tab, reduced-motion support; other tabs retain their routes and badges.
+## Changes in v2
+- All catalog cards: artwork and plan name side by side, plain description, separate compact benefits and price/action rows; cream Combo card, clean white single-service cards.
+- My Plan: no visible Plan ID; clearly separated validity and credits/downloads; separate service sections for combo grants. Scheduled and active status retained.
+- Download invoice and Open video editing use compact content-width buttons, wrapping on small screens. Invoice on the successful payment screen is compact too.
+- Removed the Available additional services and redundant Choose another service headings for existing subscribers. The existing eligible-plan filter still controls what is shown.
+- Plan details: artwork and name share a horizontal heading. Secure checkout from the previous patch retained.
+- Bottom bar: Home, Plans (gold crown shimmer), Video Service (NEW), My Profile. Ask AI navigation item removed; underlying route and feature code are retained. Other navigation entries and badges remain unchanged.
 
-## No backend deployment required for this patch
-Existing payment service, eligiblePlans, grants, GST calculations, payment verification and recovery, invoice implementation, plan activation, Firestore, R2, and video editing functionality are not modified. Prices, validity, benefits and credits come from the existing server data; mockup prices are not hardcoded. Checkout continues through the current Razorpay gateway. No new environment variables or dependencies. The design uses local CSS/vector artwork instead of the mockup's raster illustrations; no extra data reads or remote artwork requests were added. The original subscription screen hides the global app header, so the redesigned hero includes branding without adding non-functional navigation or notification buttons. The crown is the actual Plans icon, not an additional badge.
+## Deploy
+Back up your project. Copy the included src paths to the Web App root. Use npm ci if dependencies are missing, npm run dev to preview, then npm run build and redeploy Web App on Vercel. No Admin, Firebase Functions, Firestore rules/indexes, R2, env, or payment service changes required. Actual catalog and entitlement data drive all prices, credits and validity. No new dependencies.
 
 ## Verification
-- 21 existing tests passed (`payments`, `videoServiceProgress`, `posterAccess`).
-- The eligibility test from `planExperience` passed in isolation without its invoice dependency.
-- All six JSX files transpiled successfully with TypeScript, and both CSS files parsed with PostCSS.
-- The full `planExperience` suite could not start because `jspdf` is not installed in this environment. The production Vite build and real mobile/browser checkout were not run because project dependencies are unavailable. No live Firebase data or payment was used.
+21 existing payment, video progress and poster access tests passed; original eligibility test passed separately (22 total). Six JSX files transpiled with TypeScript, two CSS files parsed with PostCSS, and ten UI source assertions passed. The full production build could not run because Vite is not installed here; full invoice tests and browser/live checkout testing were not run. The design is adapted to real plan data and uses local vector artwork instead of raster mockup images.
 
-## Before production
-Check on a small phone and desktop: no-plan account, poster-only, video-only, combo, expired/exhausted and scheduled grants; plan details and checkout navigation; coupon add/remove; pending-order recovery; Razorpay test payment; receipt download; existing video feature; tab shimmer with reduced-motion accessibility enabled. Verify against your latest local project if changes were made after the supplied ZIP.
+Before publishing, check mobile widths 320/360/390px, long plan names, poster-only/video-only/combo/scheduled accounts, invoice download, Open video editing, four-tab navigation, and Razorpay test checkout.

@@ -885,3 +885,55 @@
 .mlm-featured-bottom { flex-wrap:wrap; }
 .mlm-featured-bottom button { max-width:100%; }
 .mlm-featured-bottom button svg { flex-shrink:0; }
+
+/* Approved revision: a clear header, one benefits row, and a separate price/action row. */
+.mlm-plans-page .mlm-plan-card { padding:16px; margin-bottom:16px; background:#fff; }
+.mlm-plans-page .mlm-plan-featured { background:linear-gradient(135deg,#fffdfa,#fff6e4); border-color:#eac362; }
+.mlm-plans-page .mlm-plan-poster { border-color:#e3dcf4; }
+.mlm-plans-page .mlm-plan-video { border-color:#d6e6fa; }
+.mlm-clean-plan-heading { gap:12px; align-items:center; }
+.mlm-plans-page .mlm-clean-plan-heading .mlm-service-icon { width:52px; height:52px; border-radius:13px; }
+.mlm-plans-page .mlm-plan-featured .mlm-service-icon { background:#fff0d1; }
+.mlm-plans-page .mlm-clean-plan-heading h3 { font-size:18px; line-height:1.3; letter-spacing:-.025em; font-weight:750; }
+.mlm-plans-page .mlm-clean-plan-heading p { font-size:12px; line-height:1.5; margin-top:3px; }
+.mlm-clean-benefits { display:flex; flex-wrap:wrap; gap:7px 14px; margin:13px 0 0; color:#52617d; font-size:11px; line-height:1.45; }
+.mlm-clean-benefits > span { display:inline-flex; align-items:center; gap:5px; min-width:0; overflow-wrap:anywhere; }
+.mlm-clean-benefits svg { flex:none; color:#2f80ea; }
+.mlm-clean-plan-footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding-top:12px; margin-top:12px; border-top:1px solid #dce6f5; }
+.mlm-plan-featured .mlm-clean-plan-footer { border-color:#eadfc9; }
+.mlm-clean-plan-footer > strong { font-size:24px; line-height:1.2; letter-spacing:-.035em; font-weight:780; color:var(--plans-ink); overflow-wrap:anywhere; min-width:0; }
+.mlm-plans .mlm-compact-buy { display:inline-flex; align-items:center; justify-content:center; gap:5px; flex:none; min-height:36px; padding:7px 13px; border:1px solid #2f80ea; border-radius:10px; background:#fff; color:#145ecb; font-weight:700; font-size:12px; }
+.mlm-plans .mlm-compact-buy-featured { background:var(--plans-gradient); color:white; border-color:transparent; }
+.mlm-plans-page .mlm-active-card { padding:16px; margin-bottom:16px; background:#fff; }
+.mlm-clean-plan-heading > .mlm-tag { flex:none; border-radius:20px; padding:5px 8px; letter-spacing:0; }
+.mlm-clean-active-metrics { margin-top:14px; padding:0 12px; background:#f2f6fd; border-radius:12px; }
+.mlm-clean-service { padding:12px 0; }
+.mlm-clean-service + .mlm-clean-service { border-top:1px solid #d9e3f3; }
+.mlm-clean-service-title { margin:0 0 10px; font-size:12px; font-weight:750; color:#174b9e; }
+.mlm-clean-metric-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.mlm-clean-metric { display:flex; align-items:flex-start; gap:7px; min-width:0; }
+.mlm-clean-metric + .mlm-clean-metric { border-left:1px solid #d8e2f2; padding-left:10px; }
+.mlm-clean-metric svg { flex:none; color:#2f80ea; margin-top:2px; }
+.mlm-clean-metric > div { min-width:0; }
+.mlm-clean-metric small { display:block; font-size:11px; line-height:1.4; color:#52617d; }
+.mlm-clean-metric strong { display:block; margin-top:4px; font-size:13px; line-height:1.4; color:var(--plans-ink); overflow-wrap:anywhere; }
+.mlm-clean-active-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px; margin-top:13px; }
+.mlm-clean-active-actions .mlm-active-invoice { display:inline-flex; width:auto; max-width:100%; min-height:36px; margin:0; padding:7px 10px; border-radius:10px; font-size:11px !important; line-height:1.3; gap:5px; }
+.mlm-clean-active-actions .mlm-active-invoice svg { flex:none; }
+.mlm-clean-active-actions .mlm-open-video { background:#eaf3ff; }
+.mlm-clean-active-actions .mlm-active-invoice:disabled { opacity:.55; cursor:wait; }
+.mlm-available-plans { margin-top:16px; }
+.mlm-plans-hero + .mlm-plans-content .mlm-available-plans:first-child { margin-top:0; }
+.mlm-clean-detail-heading { display:flex; align-items:center; text-align:left; gap:12px; }
+.mlm-clean-detail-heading .mlm-plan-art { --art-size:64px; }
+.mlm-clean-detail-heading h3 { font-size:22px; min-width:0; }
+@media(max-width:359px){
+  .mlm-plans-page .mlm-plan-card,.mlm-plans-page .mlm-active-card { padding:12px; }
+  .mlm-plans-page .mlm-clean-plan-heading { gap:8px; }
+  .mlm-plans-page .mlm-clean-plan-heading .mlm-service-icon { width:44px; height:44px; }
+  .mlm-plans-page .mlm-clean-plan-heading h3 { font-size:16px; }
+  .mlm-clean-metric-row { grid-template-columns:1fr; gap:10px; }
+  .mlm-clean-metric + .mlm-clean-metric { border-left:0; padding-left:0; }
+}
+
+.mlm-plans .mlm-result-invoice { align-self:center; width:auto; min-height:36px; padding:8px 12px; font-size:12px; }

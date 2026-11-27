@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { House, Person } from "@gravity-ui/icons";
 import { useAppLanguage } from "../i18n/AppLanguageContext";
-import { Sparkles, Video } from "lucide-react";
+import { Video } from "lucide-react";
 import { db } from "../Firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { COLLECTIONS } from "../collections";
@@ -23,11 +23,6 @@ const TABS = [
     label: "Plans",
     path: "/subscription",
     Icon: PlansCrown,
-  },
-  {
-    label: "Ask AI",
-    path: "/ask-ai",
-    Icon: ({ className }) => <Sparkles className={className} />,
   },
   { label: "Video Service", path: "/video-editing", Icon: Video },
   {
@@ -103,11 +98,8 @@ export default function TabBar() {
           const isActive =
             location.pathname === path ||
             (path === "/" && location.pathname === "");
-          const isAi = path === "/ask-ai";
           const isReporting = path === "/reporting";
           const isHome = path === "/";
-          const showBadge =
-            (isReporting && badgeCount > 0) || (isHome && hasNewTemplates);
 
           return (
             <button
