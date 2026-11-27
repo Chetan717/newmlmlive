@@ -937,3 +937,57 @@
 }
 
 .mlm-plans .mlm-result-invoice { align-self:center; width:auto; min-height:36px; padding:8px 12px; font-size:12px; }
+
+/* V3 — uploaded rectangular plan banners, taller without widening the cards. */
+.mlm-plans-page .mlm-plans-hero { height:auto; min-height:132px; padding:16px 16px 20px; background:linear-gradient(135deg,#f9fbff,#e9f3ff); color:var(--plans-ink); }
+.mlm-plans-hero .mlm-header-content { padding-right:84px; }
+.mlm-plans-hero .mlm-hero-brand { color:#1764cd; }
+.mlm-plans-hero h1 { font-size:29px; }
+.mlm-plans-hero .mlm-hero-subtitle { color:#425775; font-size:13px; margin-top:5px !important; }
+.mlm-plans-hero > .mlm-plan-art { --art-size:76px; top:50%; transform:translateY(-50%); right:max(13px,calc((100% - 700px)/2)); }
+.mlm-plans-hero + .mlm-plans-content { margin-top:0; padding-top:8px; }
+.mlm-plans-page .mlm-banner-card,.mlm-plans-page .mlm-banner-active { padding:9px; border-radius:16px; margin-bottom:13px; overflow:hidden; }
+.mlm-plans-page .mlm-banner-card.mlm-plan-featured { background:#fffaf0; border-color:#f0bf47; }
+.mlm-banner-wrap { position:relative; }
+.mlm-plan-banner { position:relative; width:100%; aspect-ratio:20 / 9; border-radius:11px; overflow:hidden; background:#edf3fc; }
+.mlm-plan-banner > img { display:block; width:100%; height:100%; object-fit:contain; }
+.mlm-banner-fallback { width:100%; height:100%; padding:14px; display:flex; align-items:center; justify-content:space-between; gap:10px; color:white; background:linear-gradient(125deg,#1555b9,#2f80ea); }
+.mlm-banner-poster .mlm-banner-fallback { background:linear-gradient(120deg,#126bc8,#4dc1f6); }
+.mlm-banner-video .mlm-banner-fallback { background:linear-gradient(120deg,#42209f,#8059ee); }
+.mlm-banner-combo .mlm-banner-fallback { background:linear-gradient(120deg,#093572,#1579d1); }
+.mlm-banner-fallback > span:first-child { font-size:clamp(16px,5vw,29px); font-weight:780; line-height:1.15; min-width:0; overflow-wrap:anywhere; }
+.mlm-banner-fallback .mlm-plan-art { --art-size:clamp(64px,23vw,120px); }
+.mlm-banner-wrap .mlm-combo-label { position:absolute; top:7px; left:7px; margin:0; background:#ffd767; font-size:10px; padding:4px 7px; z-index:1; }
+.mlm-banner-wrap .mlm-banner-combo .mlm-banner-fallback { padding-top:27px; }
+.mlm-banner-body { padding:9px 4px 3px; }
+.mlm-banner-body h3 { font-size:18px; font-weight:780; line-height:1.25; letter-spacing:-.025em; color:var(--plans-ink); overflow-wrap:anywhere; }
+.mlm-banner-body .mlm-banner-description { font-size:12px; color:#425775; line-height:1.45; margin-top:3px; }
+.mlm-banner-body .mlm-clean-benefits { margin-top:7px; gap:5px 11px; font-size:11px; }
+.mlm-banner-footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; margin-top:10px; }
+.mlm-banner-price { display:flex; align-items:center; flex-wrap:wrap; gap:7px; min-width:0; }
+.mlm-banner-price strong { font-size:23px; color:#0b4fb5; line-height:1.2; font-weight:800; letter-spacing:-.025em; overflow-wrap:anywhere; }
+.mlm-duration-pill { padding:3px 8px; border-radius:20px; background:#edf1f7; color:#314562; font-weight:650; font-size:10px; }
+.mlm-banner-card .mlm-compact-buy { min-height:36px; padding:7px 12px; font-size:12px; }
+.mlm-active-title { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px; }
+.mlm-active-title .mlm-tag { padding:4px 8px; border-radius:20px; font-size:11px; }
+.mlm-active-facts { margin-top:8px; }
+.mlm-active-fact { display:grid; grid-template-columns:16px minmax(0,1fr) minmax(0,1fr); align-items:center; gap:7px; padding:7px 0; border-bottom:1px solid #e4eaf3; font-size:12px; }
+.mlm-active-fact:last-child { border-bottom:0; }
+.mlm-active-fact svg { color:#2f80ea; }
+.mlm-active-fact span { color:#425775; overflow-wrap:anywhere; }
+.mlm-active-fact strong { text-align:right; color:var(--plans-ink); font-weight:700; overflow-wrap:anywhere; }
+.mlm-banner-active .mlm-clean-active-actions { margin-top:5px; }
+.mlm-banner-active .mlm-clean-active-actions .mlm-active-invoice,.mlm-plans .mlm-result-invoice { display:inline-flex; align-items:center; justify-content:center; width:auto; min-height:32px; padding:4px 9px; border-radius:8px; font-size:11px !important; }
+.mlm-sheet-screen .mlm-checkout-plan,.mlm-sheet-screen .mlm-detail-hero { display:flex; flex-direction:column; align-items:stretch; gap:8px; padding:10px; background:white; color:var(--plans-ink); border:1px solid var(--plans-card-border); border-radius:15px; box-shadow:var(--plans-card-shadow); text-align:left; }
+.mlm-sheet-screen .mlm-checkout-plan h3,.mlm-sheet-screen .mlm-detail-hero h3 { font-size:19px; font-weight:780; }
+.mlm-sheet-screen .mlm-checkout-plan > div:not(.mlm-plan-banner) { padding:0 4px 4px; }
+.mlm-sheet-screen .mlm-checkout-validity { display:inline-flex; color:#087b3f !important; background:#e0f6e8; border-radius:7px; padding:3px 7px; font-size:11px; }
+.mlm-sheet-screen .mlm-detail-hero-metrics { margin-top:0; background:#f2f6fd; }
+.mlm-sheet-screen .mlm-summary-total { background:#e6f1ff; border-radius:9px; padding:12px 9px; }
+@media(max-width:359px){.mlm-banner-price strong{font-size:19px}.mlm-banner-card .mlm-compact-buy{padding:6px 9px}.mlm-banner-body h3{font-size:16px}.mlm-banner-body{padding:7px 3px 2px}.mlm-plan-banner{border-radius:9px}}
+@media(min-width:600px){.mlm-plan-banner{max-height:300px}.mlm-sheet-screen .mlm-plan-banner{max-height:240px}.mlm-plans-page .mlm-banner-card,.mlm-plans-page .mlm-banner-active{padding:12px}.mlm-banner-body{padding:12px 6px 5px}}
+
+/* Keep the existing app-width brand strip and a compact white introduction. */
+.mlm-plans-page .mlm-plans-hero { min-height:166px; padding-top:64px; }
+.mlm-plans-hero .mlm-brand-strip { position:absolute; inset:0 0 auto; height:51px; margin:0; padding:0 18px; justify-content:center; background:var(--plans-gradient); color:#fff; font-size:17px; }
+.mlm-plans-hero > .mlm-plan-art { top:calc(50% + 25px); }

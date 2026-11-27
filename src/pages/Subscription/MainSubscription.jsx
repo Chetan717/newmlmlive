@@ -14,7 +14,7 @@ import {
   Video,
   X,
 } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import PaymentSheet from "./PaymentSheet";
 import { useAuth } from "../../Auth/AuthContext";
 import { payments, paymentMessage } from "../../services/paymentService";
@@ -29,67 +29,53 @@ import {
 } from "./planState.mjs";
 import "./plans.css";
 import PlanArtwork from "./PlanArtwork";
+import PlanBanner from "./PlanBanner";
 
-function PlanCard({ plan, onChoose }) {
+function PlanCard({ plan, onChoose, priority = false }) {
   const kind = plan.serviceType || "poster";
   const combo = kind === "combo";
   const amount = money(plan.amountPaise ?? Math.round(Number(plan.PlanAmount) * 100));
-  const posterLabel = plan.unlimitedDownloads ? "Unlimited poster downloads" : `${plan.downloads || 0} poster downloads`;
-  const videoLabel = plan.videoCredits == null ? "Video service access" : `${plan.videoCredits} video credits`;
+  const description = combo ? "Poster Design + Video Editing in one plan." : kind === "video" ? "Get your videos professionally edited." : "Create and download professional posters.";
   return (
-    <article className={`mlm-plan-card mlm-plan-${kind} ${combo ? "mlm-plan-featured" : ""}`}>
-      {combo && <div className="mlm-combo-label"><Crown size={13} /> Combo benefits</div>}
-      <div className="mlm-plan-row mlm-clean-plan-heading">
-        <span className="mlm-service-icon">{!combo && plan.image_url ? <img src={plan.image_url} alt="" loading="lazy" /> : <PlanArtwork kind={kind} />}</span>
-        <div className="mlm-plan-copy">
-          <h3>{plan.PlanName}</h3>
-          <p>{combo ? "Poster Design + Video Editing" : kind === "video" ? "Get your videos professionally edited" : "Create & download professional posters"}</p>
+    <article className={`mlm-plan-card mlm-banner-card mlm-plan-${kind} ${combo ? "mlm-plan-featured" : ""}`}>
+      <div className="mlm-banner-wrap">
+        <PlanBanner plan={plan} priority={priority}/>
+        {combo && <span className="mlm-combo-label"><Crown size={12}/> Combo benefits</span>}
+      </div>
+      <div className="mlm-banner-body">
+        <h3>{plan.PlanName}</h3>
+        <p className="mlm-banner-description">{description}</p>
+        <div className="mlm-clean-benefits">
+          {kind !== "video" && <span><Image size={14}/>{plan.unlimitedDownloads ? "Unlimited posters" : `${plan.downloads || 0} poster downloads`}</span>}
+          {kind !== "poster" && <span><Video size={14}/>{plan.videoCredits == null ? "Video service access" : `${plan.videoCredits} video credits`}</span>}
         </div>
-      </div>
-      <div className="mlm-clean-benefits">
-        <span><CalendarDays size={14}/>{plan.Day_value} days</span>
-        {kind !== "video" && <span><Image size={14}/>{posterLabel}</span>}
-        {kind !== "poster" && <span><Video size={14}/>{videoLabel}</span>}
-      </div>
-      <div className="mlm-clean-plan-footer">
-        <strong>{amount}</strong>
-        <button type="button" className={`mlm-compact-buy ${combo ? "mlm-compact-buy-featured" : ""}`} aria-label={`View ${plan.PlanName}`} onClick={() => onChoose(plan)}>Buy now <ChevronRight size={15}/></button>
+        <div className="mlm-banner-footer">
+          <div className="mlm-banner-price"><strong>{amount}</strong><span className="mlm-duration-pill">{plan.Day_value} days</span></div>
+          <button type="button" className="mlm-compact-buy mlm-compact-buy-featured" aria-label={`Buy ${plan.PlanName}`} onClick={() => onChoose(plan)}>Buy Now <ChevronRight size={15}/></button>
+        </div>
       </div>
     </article>
   );
 }
-function ActiveCard({ grants, onInvoice, invoiceBusy }) {
+function ActiveCard({ grants, purchasedPlan, onInvoice, invoiceBusy }) {
   const first = grants[0];
-  const kind = grants.length > 1 ? "combo" : first.serviceType || "poster";
+  const kind = purchasedPlan?.serviceType || (grants.length > 1 ? "combo" : first.serviceType || "poster");
   const now = Date.now();
-  const scheduled = first.startsAtMs > now;
-  const videoActive = grants.some(g => g.serviceType === "video" && !g.revoked && g.startsAtMs <= now && now < g.expiresAtMs);
+  const scheduled = grants.every(g => g.startsAtMs > now);
+  const name = first.planName || purchasedPlan?.PlanName || "Active plan";
   return (
-    <article className={`mlm-active-card mlm-active-${kind}`}>
-      <div className="mlm-plan-row mlm-clean-plan-heading">
-        <span className="mlm-service-icon"><PlanArtwork kind={kind}/></span>
-        <div className="mlm-plan-copy">
-          <h3>{first.planName || "Active plan"}</h3>
-          <p>{serviceLabel(kind)}</p>
+    <article className={`mlm-active-card mlm-banner-active mlm-active-${kind}`}>
+      <PlanBanner plan={purchasedPlan || {PlanName: name}} kind={kind}/>
+      <div className="mlm-banner-body">
+        <div className="mlm-active-title"><h3>{name}</h3><span className={`mlm-tag ${scheduled ? "is-scheduled" : "is-active"}`}>{scheduled ? "Scheduled" : "Active"}</span></div>
+        <div className="mlm-active-facts">
+          {grants.map(g => <div className="mlm-active-fact" key={`date-${g.serviceType || "poster"}`}><CalendarDays size={15}/><span>{grants.length > 1 ? `${serviceLabel(g.serviceType)} · ` : ""}{g.startsAtMs > now ? "Starts on" : "Valid till"}</span><strong>{dateLabel(g.startsAtMs > now ? g.startsAtMs : g.expiresAtMs)}</strong></div>)}
+          <div className="mlm-active-fact"><ShieldCheck size={15}/><span>Access type</span><strong>{serviceLabel(grants.length > 1 ? "combo" : first.serviceType)}</strong></div>
+          {grants.map(g => {const poster = (g.serviceType || "poster") === "poster";return <div className="mlm-active-fact" key={`credits-${g.serviceType || "poster"}`}>{poster ? <Image size={15}/> : <Video size={15}/>}<span>{poster ? "Poster downloads" : "Video credits"}</span><strong>{poster ? (g.unlimitedDownloads ? "Unlimited" : `${g.remainingDownloads} left`) : (g.remainingCredits == null ? "Period access" : `${Math.max(0,g.remainingCredits-(g.reservedVideoCredits||0))} left`)}</strong></div>;})}
         </div>
-        <span className={`mlm-tag ${scheduled ? "is-scheduled" : "is-active"}`}>{scheduled ? "Scheduled" : "Active"}</span>
-      </div>
-      <div className="mlm-clean-active-metrics">{grants.map((g) => {
-        const poster = (g.serviceType || "poster") === "poster";
-        const future = g.startsAtMs > now;
-        return <div className="mlm-clean-service" key={g.serviceType || "poster"}>
-          {grants.length > 1 && <h4 className="mlm-clean-service-title">{serviceLabel(g.serviceType)}</h4>}
-          <div className="mlm-clean-metric-row">
-            <div className="mlm-clean-metric"><CalendarDays size={18}/><div><small>{future ? "Starts on" : "Valid till"}</small><strong>{dateLabel(future ? g.startsAtMs : g.expiresAtMs)}</strong></div></div>
-            <div className="mlm-clean-metric">{poster ? <Image size={18}/> : <Video size={18}/>}<div><small>{poster ? "Poster downloads" : "Video credits"}</small><strong>{poster ? (g.unlimitedDownloads ? "Unlimited" : `${g.remainingDownloads} left`) : (g.remainingCredits == null ? "Period access" : `${Math.max(0,g.remainingCredits-(g.reservedVideoCredits||0))} left`)}</strong></div></div>
-          </div>
-        </div>;
-      })}</div>
-      <div className="mlm-clean-active-actions">
-        <button type="button" className="mlm-active-invoice" onClick={() => onInvoice(first.purchaseId)} disabled={Boolean(invoiceBusy)}>
-          <Download size={15}/>{invoiceBusy === first.purchaseId ? "Preparing…" : "Download invoice"}
-        </button>
-        {videoActive && <Link className="mlm-active-invoice mlm-open-video" to="/video-editing"><CirclePlay size={15}/> Open video editing <ChevronRight size={14}/></Link>}
+        <div className="mlm-clean-active-actions">
+          <button type="button" className="mlm-active-invoice" aria-label="Download invoice" onClick={() => onInvoice(first.purchaseId)} disabled={Boolean(invoiceBusy)}><Download size={13}/>{invoiceBusy === first.purchaseId ? "Preparing…" : "Invoice"}</button>
+        </div>
       </div>
     </article>
   );
@@ -339,8 +325,8 @@ export default function MainSubscription() {
     >
       {view !== "result" && (
         <header className={`mlm-plans-header ${view === "plans" ? "mlm-plans-hero" : ""}`}>
+          {view === "plans" && <div className="mlm-hero-brand mlm-brand-strip"><CirclePlay size={23} fill="#ffffff" stroke="#1768e6"/> MLM LIVE</div>}
           <div className="mlm-header-content">
-            {view === "plans" && <div className="mlm-hero-brand"><CirclePlay size={20} fill="#ffffff" stroke="#1768e6"/> MLM LIVE</div>}
             <div className="mlm-title-row">
               {view !== "plans" && (
                 <button
@@ -359,7 +345,7 @@ export default function MainSubscription() {
                     : "Plans"}
               </h1>
             </div>
-            {view === "plans" && <p className="mlm-hero-subtitle">Choose a plan and unlock our premium services.</p>}
+            {view === "plans" && <p className="mlm-hero-subtitle">Choose the right plan for your branding and content needs.</p>}
           </div>
           {view === "plans" && <PlanArtwork hero kind="video"/>}
         </header>
@@ -446,11 +432,12 @@ export default function MainSubscription() {
                   </button>
                   <button
                     className="mlm-secondary mlm-result-invoice"
+                    aria-label="Download invoice"
                     disabled={Boolean(invoiceBusy)}
                     onClick={() => invoice(outcome.purchaseId)}
                   >
                     <Download size={18} />
-                    {invoiceBusy ? "Preparing invoice…" : "Download invoice"}
+                    {invoiceBusy ? "Preparing…" : "Invoice"}
                   </button>
                 </>
               ) : pending ? (
@@ -548,12 +535,13 @@ export default function MainSubscription() {
                       <button
                         disabled={Boolean(invoiceBusy)}
                         className="mlm-text-button"
+                        aria-label="Download invoice"
                         onClick={() => invoice(p.purchaseId)}
                       >
                         <Download size={15} />
                         {invoiceBusy === p.purchaseId
                           ? "Preparing…"
-                          : "Download invoice"}
+                          : "Invoice"}
                       </button>
                     )}
                     {[
@@ -608,6 +596,7 @@ export default function MainSubscription() {
                       <ActiveCard
                         key={id}
                         grants={grants}
+                        purchasedPlan={data.items.find(p => p.purchaseId === id)?.plan}
                         onInvoice={invoice}
                         invoiceBusy={invoiceBusy}
                       />
@@ -623,20 +612,19 @@ export default function MainSubscription() {
                     aria-label="Available plans"
                     className="mlm-available-plans"
                   >
+                    {groups.size > 0 && <p className="mlm-additional-note"><ShieldCheck size={19}/> These services can be purchased separately from your current plan.</p>}
                     {available
                       .filter((p) => p.serviceType === "combo")
-                      .map((p) => (
-                        <PlanCard key={p.planId} plan={p} onChoose={choose} />
+                      .map((p, i) => (
+                        <PlanCard key={p.planId} plan={p} onChoose={choose} priority={i === 0 && groups.size === 0} />
                       ))}
-                    {groups.size === 0 && available.some((p) => p.serviceType !== "combo") && (
-                      <h2 className="mlm-section-heading">Choose your service</h2>
-                    )}
+                    
                     {available
                       .filter((p) => p.serviceType !== "combo")
                       .map((p) => (
                         <PlanCard key={p.planId} plan={p} onChoose={choose} />
                       ))}
-                    {groups.size > 0 && <p className="mlm-additional-note"><ShieldCheck size={19}/> These services can be purchased separately from your current plan.</p>}
+                    
                     <p className="mlm-catalog-note">
                       One-time payment, no automatic renewal. GST is calculated
                       at checkout. You can buy a service again after its plan

@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { Check, CalendarDays, ChevronRight, ShieldCheck } from "lucide-react";
-import PlanArtwork from "./PlanArtwork";
+import PlanBanner from "./PlanBanner";
 import PaymentSheet from "./PaymentSheet";
 import { money, planBenefits } from "./planState.mjs";
 export function PlanModal({ plan, openA, setOpenA, onProceedToCheckout }) {
@@ -19,10 +19,9 @@ export function PlanModal({ plan, openA, setOpenA, onProceedToCheckout }) {
       }
     >
       <div className={`mlm-detail-hero mlm-detail-${plan.serviceType || "poster"}`}>
-        <div className="mlm-clean-detail-heading"><PlanArtwork kind={plan.serviceType || "poster"}/><h3>{plan.PlanName}</h3></div>
+        <PlanBanner plan={plan} priority/><h3>{plan.PlanName}</h3>
         <div className="mlm-detail-hero-metrics"><span><CalendarDays size={18}/> {plan.Day_value} days validity</span><strong>{money(plan.amountPaise ?? Math.round(Number(plan.PlanAmount) * 100))}</strong></div>
       </div>
-      {plan.image_url && <img className="mlm-detail-image" src={plan.image_url} alt={plan.PlanName} loading="lazy" />}
       <div className="mlm-benefits">
         <h4>What’s included?</h4>
         {planBenefits(plan).map((line, i) => (

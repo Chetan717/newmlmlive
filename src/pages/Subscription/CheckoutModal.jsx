@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LockKeyhole, ShieldCheck, CalendarDays, TicketPercent } from "lucide-react";
-import PlanArtwork from "./PlanArtwork";
+import PlanBanner from "./PlanBanner";
 import { flushSync } from "react-dom";
 import { getUser } from "../../utils/authStorage";
 import { payments, paymentMessage } from "../../services/paymentService";
@@ -206,7 +206,7 @@ export function CheckoutModal({
       }
     >
       <div className={`mlm-checkout-plan mlm-checkout-${plan.serviceType || "poster"}`}>
-        <PlanArtwork kind={plan.serviceType || "poster"}/>
+        <PlanBanner plan={plan} priority/>
         <div><h3>{plan.PlanName}</h3><p>{serviceLabel(plan.serviceType)}</p><p className="mlm-checkout-validity"><CalendarDays size={16}/> {plan.Day_value} days validity</p></div>
       </div>
       {quote?.mode === "test" && (
