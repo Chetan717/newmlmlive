@@ -11,7 +11,7 @@ import {
   Video,
   X,
 } from "lucide-react";
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import PaymentSheet from "./PaymentSheet";
 import { useAuth } from "../../Auth/AuthContext";
 import { payments, paymentMessage } from "../../services/paymentService";
@@ -99,6 +99,7 @@ function ActiveCard({ grants, onInvoice, invoiceBusy }) {
           <p>{serviceLabel(kind)}</p>
         </div>
       </div>
+      {grants.some(g => g.serviceType === "video" && !g.revoked && g.startsAtMs <= Date.now() && Date.now() < g.expiresAtMs) && <Link className="mlm-active-invoice" to="/video-editing">Open Video Editing Service</Link>}
       {grants.map((g) => (
         <div className="mlm-active-service" key={g.serviceType || "poster"}>
           <p>
@@ -115,7 +116,7 @@ function ActiveCard({ grants, onInvoice, invoiceBusy }) {
                 : `${g.remainingDownloads} credits left`
               : g.remainingCredits == null
                 ? "Valid for this period"
-                : `${g.remainingCredits} credits left`}
+                : `${Math.max(0,g.remainingCredits-(g.reservedVideoCredits||0))} available video credits`}
           </span>
         </div>
       ))}

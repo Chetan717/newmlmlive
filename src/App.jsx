@@ -48,6 +48,7 @@ const Forgetpin = lazy(() =>
 const Logout = lazy(() =>
   import("./Auth/Logout").then((m) => ({ default: m.Logout })),
 );
+const VideoService = lazy(() => import("./pages/Video/VideoService"));
 const MainSubscription = lazy(
   () => import("./pages/Subscription/MainSubscription"),
 );
@@ -433,6 +434,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/video-editing" element={<ProtectedRoute><Layout><VideoService /></Layout></ProtectedRoute>} />
           <Route
             path="/subscription"
             element={

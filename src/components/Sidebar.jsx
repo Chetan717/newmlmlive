@@ -40,6 +40,7 @@ const NAV_ITEMS = [
     link: "/subscription",
   },
 
+  { icon: Video, label: "Video Editing Service", id: "videoEditing", link: "/video-editing" },
   {
     icon: Comments,
     label: "Customer Support",
