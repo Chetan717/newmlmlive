@@ -41,6 +41,10 @@
     {
       "source": "/((?!api/).*)",
       "destination": "/"
+    },
+    {
+      "source": "/video-team",
+      "destination": "/index.html"
     }
   ],
   "redirects": [
