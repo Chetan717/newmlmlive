@@ -1,42 +1,31 @@
 import { useCallback } from "react";
-import { Check, Crown, Image, Video } from "lucide-react";
+import { Check, CalendarDays, ChevronRight, ShieldCheck } from "lucide-react";
+import PlanArtwork from "./PlanArtwork";
 import PaymentSheet from "./PaymentSheet";
 import { money, planBenefits } from "./planState.mjs";
 export function PlanModal({ plan, openA, setOpenA, onProceedToCheckout }) {
   const close = useCallback(() => setOpenA(false), [setOpenA]);
   if (!plan) return null;
-  const Icon =
-    plan.serviceType === "combo"
-      ? Crown
-      : plan.serviceType === "video"
-        ? Video
-        : Image;
   return (
     <PaymentSheet
       open={openA}
       title="Plan details"
+      variant="screen"
       onClose={close}
       footer={
         <button className="mlm-primary" onClick={onProceedToCheckout}>
-          Continue to checkout
+          Continue to checkout <ChevronRight size={19}/>
         </button>
       }
     >
-      {plan.image_url && <img className="mlm-detail-image" src={plan.image_url} alt={plan.PlanName} />}
-      <div className="mlm-detail-summary">
-        <span className="mlm-service-icon">
-          <Icon size={24} />
-        </span>
-        <div>
-          <h3>{plan.PlanName}</h3>
-          <p>{plan.Day_value} days validity</p>
-        </div>
-        <strong>
-          {money(plan.amountPaise ?? Math.round(Number(plan.PlanAmount) * 100))}
-        </strong>
+      <div className={`mlm-detail-hero mlm-detail-${plan.serviceType || "poster"}`}>
+        <PlanArtwork hero kind={plan.serviceType || "poster"}/>
+        <h3>{plan.PlanName}</h3>
+        <div className="mlm-detail-hero-metrics"><span><CalendarDays size={18}/> {plan.Day_value} days validity</span><strong>{money(plan.amountPaise ?? Math.round(Number(plan.PlanAmount) * 100))}</strong></div>
       </div>
+      {plan.image_url && <img className="mlm-detail-image" src={plan.image_url} alt={plan.PlanName} loading="lazy" />}
       <div className="mlm-benefits">
-        <h4>WHAT YOU GET</h4>
+        <h4>What’s included?</h4>
         {planBenefits(plan).map((line, i) => (
           <p key={i}>
             <Check size={18} />
@@ -44,6 +33,7 @@ export function PlanModal({ plan, openA, setOpenA, onProceedToCheckout }) {
           </p>
         ))}
       </div>
+      {(plan.serviceType === "video" || plan.serviceType === "combo") && <p className="mlm-additional-note"><ShieldCheck size={20}/> 1 video credit = 1 edited video. Up to 3 corrections before final approval.</p>}
       <p className="mlm-muted mlm-small">
         GST and any valid coupon are calculated in the next step. No automatic
         renewal.

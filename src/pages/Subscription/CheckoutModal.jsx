@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LockKeyhole, ShieldCheck, CalendarDays, TicketPercent } from "lucide-react";
+import PlanArtwork from "./PlanArtwork";
 import { flushSync } from "react-dom";
 import { getUser } from "../../utils/authStorage";
 import { payments, paymentMessage } from "../../services/paymentService";
@@ -167,6 +169,7 @@ export function CheckoutModal({
       title="Secure checkout"
       onClose={close}
       busy={busy}
+      variant="screen"
       footer={
         <>
           {pending && (
@@ -179,12 +182,14 @@ export function CheckoutModal({
             disabled={busy || loading || !quote}
             className="mlm-primary"
           >
+            <LockKeyhole size={19} />
             {busy
               ? "Please wait…"
               : pending
                 ? "Resume this checkout"
                 : `Continue to pay ${price ? money(price.totalPaise) : ""}`}
           </button>
+          <div className="mlm-secure-footer"><ShieldCheck size={20}/><span>Secured by <strong>Razorpay</strong></span></div>
           {!quote && !loading && (
             <button
               onClick={() => loadQuote(coupon)}
@@ -200,11 +205,9 @@ export function CheckoutModal({
         </>
       }
     >
-      <div className="mlm-checkout-plan">
-        <h3>{plan.PlanName}</h3>
-        <p>
-          {serviceLabel(plan.serviceType)} · {plan.Day_value} days
-        </p>
+      <div className={`mlm-checkout-plan mlm-checkout-${plan.serviceType || "poster"}`}>
+        <PlanArtwork kind={plan.serviceType || "poster"}/>
+        <div><h3>{plan.PlanName}</h3><p>{serviceLabel(plan.serviceType)}</p><p className="mlm-checkout-validity"><CalendarDays size={16}/> {plan.Day_value} days validity</p></div>
       </div>
       {quote?.mode === "test" && (
         <p className="mlm-notice">Test payment — live access stays separate.</p>
@@ -212,12 +215,13 @@ export function CheckoutModal({
       <label className="mlm-label">
         Coupon code
         <div className="mlm-coupon-row">
+          <TicketPercent size={22} className="mlm-coupon-icon" aria-hidden="true"/>
           <input
             aria-label="Coupon code"
             value={coupon}
             maxLength={6}
             disabled={busy || Boolean(pending)}
-            placeholder="6 characters"
+            placeholder="Enter coupon code"
             onChange={(e) => {
               setCoupon(
                 e.target.value.replace(/[^a-z0-9]/gi, "").toUpperCase(),
@@ -250,6 +254,7 @@ export function CheckoutModal({
           Remove coupon
         </button>
       )}
+      <h3 className="mlm-price-title">Price details</h3>
       <div className="mlm-payment-summary" aria-live="polite">
         {loading ? (
           <p>Getting current price…</p>
@@ -260,7 +265,7 @@ export function CheckoutModal({
               <strong>{money(price.basePaise)}</strong>
             </p>
             {price.discountPaise > 0 && (
-              <p>
+              <p className="mlm-discount-row">
                 <span>Discount ({price.discountBps / 100}%)</span>
                 <strong>− {money(price.discountPaise)}</strong>
               </p>

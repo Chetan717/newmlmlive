@@ -1,11 +1,12 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 export default function PaymentSheet({
   open,
   title,
   onClose,
   busy = false,
+  variant = "sheet",
   children,
   footer,
 }) {
@@ -68,19 +69,20 @@ export default function PaymentSheet({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="mlm-sheet"
+        className={`mlm-sheet ${variant === "screen" ? "mlm-sheet-screen" : ""}`}
       >
         <div className="mlm-sheet-handle" />
         <header className="mlm-sheet-heading">
+          {variant === "screen" && <button aria-label="Go back" disabled={busy} onClick={onClose} className="mlm-icon-button mlm-screen-back"><ArrowLeft size={22}/></button>}
           <h2>{title}</h2>
-          <button
+          {variant !== "screen" && <button
             aria-label="Close plan details"
             disabled={busy}
             onClick={onClose}
             className="mlm-icon-button"
           >
             <X size={20} />
-          </button>
+          </button>}
         </header>
         <div className="mlm-sheet-content">{children}</div>
         {footer && <footer className="mlm-sheet-footer">{footer}</footer>}

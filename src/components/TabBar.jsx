@@ -1,12 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { House, Gem, Person } from "@gravity-ui/icons";
+import { House, Person } from "@gravity-ui/icons";
 import { useAppLanguage } from "../i18n/AppLanguageContext";
 import { Sparkles, Video } from "lucide-react";
 import { db } from "../Firebase";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { COLLECTIONS } from "../collections";
 import { useGeneralData } from "../Context/GeneralContext";
+import "./PlansCrown.css";
+
+function PlansCrown({ className }) {
+  return <span className={`mlm-tab-crown ${className || ""}`} aria-hidden="true"><span className="mlm-tab-crown-shape"/></span>;
+}
 
 const TABS = [
   {
@@ -17,7 +22,7 @@ const TABS = [
   {
     label: "Plans",
     path: "/subscription",
-    Icon: ({ className }) => <Gem className={className} />,
+    Icon: PlansCrown,
   },
   {
     label: "Ask AI",
@@ -112,7 +117,8 @@ export default function TabBar() {
                 touchAction: "manipulation",
                 WebkitTapHighlightColor: "transparent",
               }}
-              className="relative flex-1 flex flex-col items-center justify-center gap-[3px] group"
+              aria-current={isActive ? "page" : undefined}
+              className={`relative flex-1 flex flex-col items-center justify-center gap-[3px] group ${path === "/subscription" && isActive ? "mlm-plans-tab-active" : ""}`}
             >
               {isActive && (
                 <div className="absolute inset-x-2 top-2 bottom-2 rounded-2xl bg-accent/10 dark:bg-accent/15" />
