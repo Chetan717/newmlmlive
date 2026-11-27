@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, CloudUpload, Film, Play, Trash2, ChevronUp, SlidersHorizontal, Check, CheckCircle2, FileVideo, Pause, AlertCircle } from "lucide-react";
 import {
   api,
   media,
@@ -36,31 +37,17 @@ function previewInfo(file) {
     v.onloadeddata=capture;v.onerror=()=>done();v.src=url;
   });
 }
-function Preview({ file, thumbnail, length }) {
+function Preview({ file, thumbnail }) {
   const [playing, setPlaying] = useState(false);
-  const [url, setUrl] = useState(""),
-    [duration, setDuration] = useState(0);
+  const [url, setUrl] = useState("");
   useEffect(() => {
     if (!file) return;
     const url = URL.createObjectURL(file);
     setUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
-  return url ? (
-    <div className="ve-local-preview">
-      {thumbnail && <img src={thumbnail} alt="Raw clip preview" width="72" height="48"/>}
-      <button type="button" onClick={() => setPlaying(!playing)}>{playing ? "Close preview" : "▶ Preview"}</button>
-      {playing && <video
-        controls
-        preload="metadata"
-        src={url}
-        onLoadedMetadata={(e) => setDuration(e.target.duration)}
-      />}
-      {(duration > 0 || length > 0) && (
-        <small> {Math.round(duration || length)} sec</small>
-      )}
-    </div>
-  ) : thumbnail ? <div className="ve-local-preview"><img src={thumbnail} alt="Raw clip preview" width="72" height="48"/><small>Select the original clip to preview again.</small></div> : null;
+  return <div className="ve-local-preview"><button type="button" aria-label={playing?"Close clip preview":"Preview raw clip"} disabled={!url} onClick={()=>setPlaying(!playing)}>{thumbnail?<img src={thumbnail} alt="Raw clip"/>:<Film size={21}/>}<span className="ve-play"><Play size={12} fill="currentColor"/></span></button>{playing&&url&&<div className="ve-local-modal" role="dialog" aria-label="Raw video preview"><button type="button" className="ve-modal-close" onClick={()=>setPlaying(false)}>Close preview ×</button><video controls playsInline preload="metadata" src={url}/></div>}</div>;
+
 }
 function typeOf(f) {
   return (
@@ -81,6 +68,9 @@ export default function NewRequest({ info, onDone, onClose }) {
     state: profile.state || "",
     files: [],
   });
+  const [step, setStep] = useState(0), [selecting,setSelecting] = useState(false);
+  const selectingRef = useRef(false), formRef=useRef(null);
+  useEffect(()=>{formRef.current?.closest(".layout-scroll-container")?.scrollTo({top:0});},[step]);
   const [busy, setBusy] = useState(false),
     [loading, load] = useState(true),
     [msg, say] = useState(""),
@@ -95,8 +85,10 @@ export default function NewRequest({ info, onDone, onClose }) {
       if (!active) return;
       if (remote.id && remote.token !== local?.token)
         set((d) => ({ ...d, id: remote.id, unavailable: true }));
-      else if (local)
+      else if (local) {
         set({ ...local, ...(remote.id ? { id: remote.id } : {}) });
+        if (remote.id || local.id) setStep(2);
+      }
     })()
       .catch((e) => active && err(e.message))
       .finally(() => active && load(false));
@@ -107,9 +99,10 @@ export default function NewRequest({ info, onDone, onClose }) {
   }, []);
   const patch = (k, v) => set((d) => ({ ...d, [k]: v }));
   async function select(list) {
+    if (!list.length || selectingRef.current) return;
+    selectingRef.current=true; setSelecting(true);
     err("");
     try {
-      if (!list.length) return;
       if (!draft.id && list.length + draft.files.length > 5)
         throw Error("Select up to five clips.");
       if (
@@ -147,7 +140,7 @@ export default function NewRequest({ info, onDone, onClose }) {
       } else set({ ...draft, files: [...draft.files, ...files] });
     } catch (e) {
       err(e.message);
-    }
+    } finally {selectingRef.current=false;setSelecting(false);}
   }
   async function send() {
     if (control.current) return;
@@ -159,7 +152,7 @@ export default function NewRequest({ info, onDone, onClose }) {
       const request = (action, data) =>
         retry(() => api(action, data), c.signal, say);
       const d = { ...draft };
-      if (!d.files.length || !d.category || !d.instructions.trim())
+      if (!d.files.length || !d.category || !d.instructions.trim() || (d.category === "Other" && !d.other.trim()))
         throw Error(
           "Choose a category, add instructions and select your clips.",
         );
@@ -223,143 +216,26 @@ export default function NewRequest({ info, onDone, onClose }) {
       setBusy(false);
     }
   }
-  const total = draft.files.reduce((n, f) => n + f.size, 0),
-    uploaded = bytes.reduce((a, b) => a + b, 0);
-  return (
-    <section>
-      <header>
-        <h2>New video request</h2>
-        <button disabled={busy} onClick={onClose}>
-          Close
-        </button>
-      </header>
-      {loading ? (
-        <p>Checking for a saved upload…</p>
-      ) : (
-        <>
-          <p>
-            {info.name} · {info.mobile}
-            {draft.company && " · " + draft.company}
-          </p>
-          {draft.unavailable ? (
-            <p>
-              An upload draft exists on another device. Resume there or discard
-              it here.
-            </p>
-          ) : (
-            <>
-              <fieldset disabled={busy || !!draft.id}>
-                <label>
-                  Video category *{" "}
-                  <select
-                    value={draft.category}
-                    onChange={(e) => patch("category", e.target.value)}
-                  >
-                    <option value="">Choose a category</option>
-                    {info.categories.map((c) => (
-                      <option key={c}>{c}</option>
-                    ))}
-                  </select>
-                </label>
-                {draft.category === "Other" && (
-                  <label>
-                    Custom category{" "}
-                    <input
-                      maxLength={100}
-                      value={draft.other}
-                      onChange={(e) => patch("other", e.target.value)}
-                    />
-                  </label>
-                )}
-                <label>
-                  Editing instructions *
-                  <textarea
-                    maxLength={5000}
-                    value={draft.instructions}
-                    placeholder="Describe the length, clip order, music, captions and important scenes."
-                    onChange={(e) => patch("instructions", e.target.value)}
-                  />
-                </label>
-              </fieldset>
-              <label>
-                Select videos{" "}
-                <input
-                  type="file"
-                  multiple
-                  disabled={busy}
-                  accept="video/mp4,video/quicktime,video/webm,.mov"
-                  onChange={(e) => {
-                    select([...e.target.files]);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-              <small>
-                1–5 clips · 200 MB per clip · 1 credit for the approved video
-              </small>
-              {draft.files.map((f, i) => (
-                <article key={i} className="ve-upload-row">
-                  <Preview file={f.blob} thumbnail={f.thumbnail} length={f.duration} />
-                  <p>
-                    {i + 1}. {f.name} · {(f.size / 1e6).toFixed(1)} MB
-                  </p>
-                  {(busy || draft.id || bytes[i] > 0) && <div className="ve-progress"><small>{Math.floor(100 * (bytes[i] || 0) / f.size)}% · {bytes[i] === f.size ? "Uploaded" : busy ? "Uploading / finalizing" : "Ready to resume"}</small><progress value={bytes[i] || 0} max={f.size} /></div>}
-                  {!draft.id && !busy && (
-                    <div className="actions">
-                      <button
-                        disabled={!i}
-                        onClick={() => {
-                          const fs = [...draft.files];
-                          [fs[i - 1], fs[i]] = [fs[i], fs[i - 1]];
-                          patch("files", fs);
-                        }}
-                      >
-                        Move up
-                      </button>
-                      <button
-                        onClick={() =>
-                          patch(
-                            "files",
-                            draft.files.filter((_, n) => n !== i),
-                          )
-                        }
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
-                </article>
-              ))}
-              {draft.files.length > 1 && total > 0 && (busy || draft.id) && (
-                <label>
-                  Overall progress · {Math.floor((uploaded / total) * 100)}%
-                  <progress value={uploaded} max={total} />
-                </label>
-              )}
-              <div className="actions">
-                {busy ? (
-                  <button onClick={() => control.current?.abort()}>
-                    Pause
-                  </button>
-                ) : (
-                  <button className="primary" onClick={send}>
-                    {draft.id ? "Resume and submit" : "Upload and submit"}
-                  </button>
-                )}
-              </div>
-            </>
-          )}
-          {draft.id && (
-            <button disabled={busy} onClick={discard}>
-              Discard draft
-            </button>
-          )}
-        </>
-      )}
-      <p role="status">{msg}</p>
-      <p className="error" role="alert">
-        {error}
-      </p>
-    </section>
-  );
+  const total = draft.files.reduce((n, f) => n + f.size, 0), uploaded = bytes.reduce((a,b)=>a+b,0);
+  const validDetails=!!(draft.category&&draft.instructions.trim()&&(draft.category!=="Other"||draft.other.trim()));
+  const allLocal=draft.files.length>0&&draft.files.every(f=>f.blob);
+  function next(){err("");if(step===0&&!allLocal){err("Select at least one video to continue.");return;}if(step===1&&!validDetails){err("Choose a category and describe the editing required.");return;}setStep(i=>Math.min(2,i+1));}
+  function preference(text){const lines=draft.instructions.split("\n");const next=lines.includes(text)?lines.filter(l=>l!==text).join("\n"):[draft.instructions.trim(),text].filter(Boolean).join("\n");if(next.length<=5000)patch("instructions",next);else err("Editing instructions cannot exceed 5000 characters.");}
+  function back(){if(busy||selecting)return;if(step>0&&!draft.id&&!draft.unavailable){setStep(step-1);err("");}else onClose();}
+  const input=<label className="ve-upload-zone"><CloudUpload size={37}/><strong>{draft.id?"Select original clips to resume":"Tap to upload video"}</strong><small>MP4, MOV, WebM · Max 200 MB each</small><small>1–5 clips</small><input type="file" multiple disabled={busy||selecting} accept="video/mp4,video/quicktime,video/webm,.mov" onChange={e=>{select([...e.target.files]);e.target.value="";}}/></label>;
+  const clipList=<div className="ve-upload-list">{draft.files.map((f,i)=><div className="ve-upload-row" key={`${i}-${f.name}`}><div className="ve-upload-file"><Preview file={f.blob} thumbnail={f.thumbnail} length={f.duration}/><div className="ve-upload-copy"><strong>{f.name}</strong><small>{(f.size/1e6).toFixed(1)} MB{f.duration?` · ${Math.round(f.duration)} sec`:""}{!f.blob?" · Reselect original if needed":""}</small></div>{!draft.id&&!busy&&!selecting&&<div className="ve-upload-actions"><button aria-label="Move clip up" disabled={!i} onClick={()=>{const fs=[...draft.files];[fs[i-1],fs[i]]=[fs[i],fs[i-1]];patch("files",fs);}}><ChevronUp size={17}/></button><button aria-label="Remove clip" onClick={()=>patch("files",draft.files.filter((_,n)=>n!==i))}><Trash2 size={17}/></button></div>}</div>{(busy||draft.id||bytes[i]>0)&&<div className="ve-progress"><small>{Math.floor(100*(bytes[i]||0)/f.size)}% · {bytes[i]===f.size?"Uploaded":busy?"Uploading / finalizing":"Ready to resume"}</small><progress value={bytes[i]||0} max={f.size}/></div>}</div>)}</div>;
+  return <section className="ve-form" ref={formRef}>
+    <header className="ve-topbar"><button aria-label="Go back" disabled={busy||selecting} onClick={back}><ArrowLeft size={21}/></button><strong>New Video Request</strong><button aria-label="Close form" disabled={busy||selecting} onClick={onClose}>×</button></header>
+    <div className="ve-form-body">
+      <nav className="ve-form-steps" aria-label="Request steps">{["Upload","Details","Submit"].map((name,i)=><div key={name} className={i<=step?"active":""} aria-current={i===step?"step":undefined}><span>{i<step?<Check size={17}/>:i+1}</span><strong>{name}</strong></div>)}</nav>
+      {loading?<div className="ve-empty" role="status">Checking for a saved upload…</div>:draft.unavailable?<article className="ve-panel"><h3><AlertCircle size={20}/> Existing upload draft</h3><p>An upload draft exists on another device. Resume there or discard it here.</p></article>:<>
+        {(step===0||step===2)&&<article className="ve-panel ve-upload-panel"><h3><CloudUpload size={20}/> {step===0?"Upload Raw Video":"Your Raw Videos"}</h3>{(step===0||draft.id)&&input}{selecting&&<p role="status">Preparing video previews…</p>}{clipList}{draft.files.length>1&&total>0&&(busy||draft.id)&&<div className="ve-progress"><small>Overall progress · {Math.floor(uploaded/total*100)}%</small><progress value={uploaded} max={total}/></div>}</article>}
+        {step===1&&<><article className="ve-panel ve-fields"><h3><FileVideo size={20}/> Video Details</h3><fieldset disabled={busy||!!draft.id}><label><span>Category <em>*</em></span><select value={draft.category} onChange={e=>patch("category",e.target.value)}><option value="">Select Category</option>{info.categories.map(c=><option key={c}>{c}</option>)}</select></label>{draft.category==="Other"&&<label><span>Custom category <em>*</em></span><input maxLength={100} value={draft.other} onChange={e=>patch("other",e.target.value)} placeholder="Enter video category"/></label>}<label><span>Editing Instructions <em>*</em></span><textarea maxLength={5000} value={draft.instructions} placeholder="Tell us what changes you want (e.g. add text, music, transitions, background, etc.)" onChange={e=>patch("instructions",e.target.value)}/></label></fieldset></article><details className="ve-panel ve-options" open><summary><SlidersHorizontal size={20}/> Additional Options</summary><p>Include these preferences in your editing instructions.</p>{["Add subtitles / captions","Change video background (if applicable)"].map(text=><label key={text}><input type="checkbox" disabled={busy||!!draft.id} checked={draft.instructions.split("\n").includes(text)} onChange={()=>preference(text)}/>{text}</label>)}</details></>}
+        {step===2&&<article className="ve-panel ve-submit-summary"><h3><CheckCircle2 size={20}/> Review your request</h3><dl className="ve-info"><dt>Customer</dt><dd>{info.name}</dd><dt>Category</dt><dd>{draft.category} {draft.other}</dd><dt>Raw videos</dt><dd>{draft.files.length} · {(total/1e6).toFixed(1)} MB</dd><dt>Instructions</dt><dd className="note">{draft.instructions}</dd><dt>Credit</dt><dd>1 video credit</dd></dl><p className="ve-credit-note">Your credit is reserved at submission and consumed when you approve the final video.</p></article>}
+        {step<2?<button className="primary ve-full ve-continue" disabled={selecting||busy} onClick={next}>Continue <ArrowRight size={20}/></button>:busy?<button className="ve-outline ve-full" onClick={()=>control.current?.abort()}><Pause size={18}/> Pause upload</button>:<button className="primary ve-full ve-continue" disabled={selecting||!validDetails||(!draft.id&&!allLocal)} onClick={send}><CloudUpload size={20}/> {draft.id?"Resume and submit":"Upload and submit"}</button>}
+      </>}
+      {draft.id&&<button className="ve-danger ve-full" disabled={busy||selecting} onClick={discard}>Discard draft</button>}
+      {msg&&<p className="ve-message" role="status">{msg}</p>}{error&&<p className="error" role="alert">{error}</p>}
+    </div>
+  </section>;
 }
