@@ -104,7 +104,9 @@ export default function TabBar() {
           return (
             <button
               key={path}
-              onClick={() => navigate(path)}
+              onClick={() => {
+                if (window.dispatchEvent(new CustomEvent("mlmlive-video-navigate", {cancelable: true, detail: {path}}))) navigate(path);
+              }}
               style={{
                 touchAction: "manipulation",
                 WebkitTapHighlightColor: "transparent",

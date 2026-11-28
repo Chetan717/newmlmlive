@@ -113,6 +113,8 @@ export default function MainSubscription() {
     [notice, setNotice] = useState(""),
     [legacy, setLegacy] = useState(null),
     [legacyBusy, setLegacyBusy] = useState(false);
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const historyInFlight = useRef(false), historyLoaded = useRef(false);
   const reload = useCallback(
     async (force = false) => {
       if (!uid) {
@@ -124,33 +126,26 @@ export default function MainSubscription() {
       if (force) payments.invalidate();
       setLoading(true);
       setError("");
-      const results = await Promise.allSettled([
-        payments.catalog(force),
-        payments.history(null, force),
-      ]);
+      try {
+        const c = await payments.catalog(force);
+        if (owner.current !== uid || epoch.current !== n) return;
+        setCatalog(c);
+        setData(old => ({ ...old, entitlement: c.entitlement }));
+        historyLoaded.current = false;
+        if (!payments.readPending() && c.pendingCheckout) payments.remember(c.pendingCheckout);
+        setPending(payments.readPending());
+      } catch (e) {
+        if (owner.current === uid && epoch.current === n) setError(paymentMessage(e));
+      }
       if (owner.current !== uid || epoch.current !== n) return;
-      const [c, h] = results;
-      if (c.status === "fulfilled") setCatalog(c.value);
-      if (h.status === "fulfilled") {
-        setData(h.value);
-        if (!payments.readPending()) {
-          const saved = h.value.items.find((p) =>
-            ["created", "pending", "creating", "creation_unknown"].includes(
-              p.status,
-            ),
-          );
-          if (saved) payments.remember(saved);
-        }
-      } else if (c.status === "fulfilled" && c.value.entitlement)
-        setData((old) => ({ ...old, entitlement: c.value.entitlement }));
-      if (c.status === "rejected" || h.status === "rejected")
-        setError(paymentMessage(c.status === "rejected" ? c.reason : h.reason));
-      setPending(payments.readPending());
       setLoading(false);
     },
     [uid],
   );
   useEffect(() => {
+    historyLoaded.current = false;
+    historyInFlight.current = false;
+    setHistoryBusy(false);
     setCatalog({ plans: [], mode: "", suggestedCoupon: "" });
     setData({ items: [], entitlement: null, cursor: null });
     setLegacy(null);
@@ -281,22 +276,31 @@ export default function MainSubscription() {
         "disputed",
       ].includes(outcome.status);
   const ResultIcon = resultPaid ? Crown : resultPending ? Clock : X;
-  const historyMore = async () => {
+  const historyMore = async (initial = false) => {
+    if (historyInFlight.current) return;
+    historyInFlight.current = true;
+    setHistoryBusy(true);
     try {
-      const page = await payments.history(data.cursor);
-      if (owner.current === uid)
+      const page = await payments.history(initial ? null : data.cursor, initial);
+      if (owner.current === uid) {
+        historyLoaded.current = true;
         setData((old) => ({
           ...page,
+          entitlement: old.entitlement || page.entitlement,
           items: [
             ...new Map(
-              [...old.items, ...page.items].map((p) => [p.purchaseId, p]),
+              [...(initial ? [] : old.items), ...page.items].map((p) => [p.purchaseId, p]),
             ).values(),
           ],
         }));
+      }
     } catch (e) {
-      setNotice(paymentMessage(e));
+      if (owner.current === uid) setNotice(paymentMessage(e));
+    } finally {
+      if (owner.current === uid) { historyInFlight.current = false; setHistoryBusy(false); }
     }
   };
+  useEffect(() => { if (view === "history" && !loading && !historyLoaded.current) void historyMore(true); }, [view, loading, uid]);
   const earlier = async () => {
     if (legacyBusy) return;
     setLegacyBusy(true);
@@ -453,7 +457,7 @@ export default function MainSubscription() {
                 className="mlm-text-button"
                 onClick={() => setView("history")}
               >
-            History
+                Purchase history
               </button>
             </div>
           </section>
@@ -484,7 +488,9 @@ export default function MainSubscription() {
             )}
             {view === "history" ? (
               <section className="mlm-history-list">
-                {!data.items.length && !loading && (
+                {historyBusy && <p role="status">Loading payment history…</p>}
+                {!historyBusy && !historyLoaded.current && <button className="mlm-secondary" onClick={() => historyMore(true)}>Retry history</button>}
+                {!data.items.length && !loading && !historyBusy && historyLoaded.current && (
                   <p className="mlm-empty">
                     Your payment history will appear here.
                   </p>
@@ -543,7 +549,7 @@ export default function MainSubscription() {
                   </article>
                 ))}
                 {data.cursor && (
-                  <button className="mlm-secondary" onClick={historyMore}>
+                  <button className="mlm-secondary" disabled={historyBusy} onClick={() => historyMore(false)}>
                     Load more payments
                   </button>
                 )}
@@ -576,7 +582,7 @@ export default function MainSubscription() {
                       <ActiveCard
                         key={id}
                         grants={grants}
-                        purchasedPlan={data.items.find(p => p.purchaseId === id)?.plan}
+                        purchasedPlan={data.items.find(p => p.purchaseId === id)?.plan || catalog.activePlans?.[id] || (grants[0]?.planImageUrl ? {PlanName:grants[0].planName,image_url:grants[0].planImageUrl,serviceType:grants.length>1?"combo":grants[0].serviceType} : undefined)}
                         onInvoice={invoice}
                         invoiceBusy={invoiceBusy}
                       />
@@ -631,7 +637,7 @@ export default function MainSubscription() {
                   </button>
                   <button onClick={() => setView("history")}>
                     <History size={20} />
-                    History
+                    Purchase history
                     <ChevronRight size={19} />
                   </button>
                   <button disabled={loading} onClick={() => reload(true)}>

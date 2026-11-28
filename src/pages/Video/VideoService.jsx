@@ -12,6 +12,14 @@ function drivePreview(link) {
   u.pathname = u.pathname.replace(/\/view$/, "/preview");
   return u.href;
 }
+function openNativeVideoLink(link) {
+  if (!window.ReactNativeWebView || !window.MLMLIVE_NATIVE_VIDEO_LINKS) return false;
+  window.ReactNativeWebView.postMessage(JSON.stringify({type: "OPEN_VIDEO_EXTERNAL", url: link}));
+  return true;
+}
+function nativeVideoLinkClick(event, link) {
+  if (openNativeVideoLink(link)) event.preventDefault();
+}
 const fmt = (t) => t ? new Date(t).toLocaleString() : "";
 const date = (t) => t ? new Date(t).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
 const duration = (n) => `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(Math.floor(n % 60)).padStart(2, "0")}`;
@@ -19,7 +27,7 @@ const labels = {"Under Review":"For review", "Correction Requested":"Revision", 
 function Status({value}) { return <b className="ve-status" data-status={value}>{value === "Completed" ? <Check size={13}/> : value === "Correction Requested" ? <RotateCw size={12}/> : <Clock size={12}/>} {labels[value] || value}</b>; }
 function Support({ info, id }) {
   const text = `Hello MLMLive Video Editing Team, I am ${info.name}. I need help with my video editing ${id ? "request " + id : "service"}.`;
-  return info.support ? <a className="ve-support" target="_blank" rel="noreferrer" href={"https://wa.me/" + info.support + "?text=" + encodeURIComponent(text)}><span className="ve-support-icon"><MessageCircle size={25}/></span><span><strong>Need Help?</strong><small>Contact our support on WhatsApp</small></span><ChevronRight size={20}/></a> : <div className="ve-support"><CircleHelp size={22}/><span><strong>Need Help?</strong><small>WhatsApp support number is pending setup.</small></span></div>;
+  return info.support ? <a className="ve-support" target="_blank" rel="noreferrer" href={"https://wa.me/" + info.support + "?text=" + encodeURIComponent(text)} onClick={e=>nativeVideoLinkClick(e,e.currentTarget.href)}><span className="ve-support-icon"><MessageCircle size={25}/></span><span><strong>Need Help?</strong><small>Contact our support on WhatsApp</small></span><ChevronRight size={20}/></a> : <div className="ve-support"><CircleHelp size={22}/><span><strong>Need Help?</strong><small>WhatsApp support number is pending setup.</small></span></div>;
 }
 function Thumb({row, large=false, onPlay}) {
   const body = <>{row.thumbnail ? <img src={row.thumbnail} alt="Original clip thumbnail" loading="lazy"/> : <Film size={large?48:26}/>} {onPlay && <span className="ve-play"><Play fill="currentColor" size={large?28:14}/></span>}{row.duration>0 && <small className="ve-duration">{duration(row.duration)}</small>}</>;
@@ -98,15 +106,16 @@ export default function VideoService() {
   }
   function download(id) {
     if (running.current) return;
-    const tab = window.open("about:blank", "_blank");
+    const nativeLinks = !!(window.ReactNativeWebView && window.MLMLIVE_NATIVE_VIDEO_LINKS);
+    const tab = nativeLinks ? null : window.open("about:blank", "_blank");
     if (tab) tab.opener = null;
     return work(async()=>{
       try {
-        const data = await api("details", { id });
-        if (data.row.status !== "Completed" || !data.row.link) throw Error("Final video is not available yet.");
-        if (!drivePreview(data.row.link)) throw Error("Invalid video link.");
-        if (tab) tab.location.replace(data.row.link);
-        else {setDetail(data);setDetailTab("Videos");setPlaying(false);}
+        const {link} = await api("finalLink", { id });
+        if (!drivePreview(link)) throw Error("Invalid video link.");
+        if (nativeLinks && openNativeVideoLink(link)) return;
+        if (tab) tab.location.replace(link);
+        else await open(id, true);
       } catch(e) {tab?.close();throw e;}
     });
   }
@@ -175,7 +184,7 @@ export default function VideoService() {
       </article>
       {["Details","Videos"].includes(detailTab) && playable && <>
         <div className={`ve-ready ${r.status==="Completed"?"":"ve-review-ready"}`}><CheckCircle2 size={24}/><strong>{r.status==="Completed"?"Your edited video is ready!":"Your video is ready for review!"}</strong></div>
-        <article className="ve-panel ve-final"><h3>{r.status==="Completed"?"Final Video":"Review Video"}</h3><div className="ve-final-file"><button aria-label="Play edited video" className="ve-file-play" onClick={()=>{setPlaying(true);scrollRef.current?.closest(".layout-scroll-container")?.scrollTo({top:0,behavior:"smooth"});}}><Play fill="currentColor" size={20}/></button><div><strong>{r.status==="Completed"?"Edited video":"Edited video · v"+r.version}</strong><small>Google Drive · Video preview</small></div><a className="ve-download" href={r.link} target="_blank" rel="noreferrer" aria-label={r.status==="Completed"?"Download in Google Drive":"Open review in Google Drive"}><Download size={22}/></a></div><small>{r.status==="Completed"?"Open the video in Drive to download your final file.":"Watch your video before approving or requesting changes."}</small></article>
+        <article className="ve-panel ve-final"><h3>{r.status==="Completed"?"Final Video":"Review Video"}</h3><div className="ve-final-file"><button aria-label="Play edited video" className="ve-file-play" onClick={()=>{setPlaying(true);scrollRef.current?.closest(".layout-scroll-container")?.scrollTo({top:0,behavior:"smooth"});}}><Play fill="currentColor" size={20}/></button><div><strong>{r.status==="Completed"?"Edited video":"Edited video · v"+r.version}</strong><small>Google Drive · Video preview</small></div><a className="ve-download" href={r.link} onClick={e=>nativeVideoLinkClick(e,r.link)} target="_blank" rel="noreferrer" aria-label={r.status==="Completed"?"Download in Google Drive":"Open review in Google Drive"}><Download size={22}/></a></div><small>{r.status==="Completed"?"Open the video in Drive to download your final file.":"Watch your video before approving or requesting changes."}</small></article>
       </>}
       {["Details","Videos","Corrections"].includes(detailTab) && r.status==="Under Review" && <article className="ve-panel ve-review-actions">
         <h3>Happy with your video?</h3><p>Watch the video, then choose an option.</p>

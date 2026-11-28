@@ -164,6 +164,7 @@ export async function retry(task, signal, state) {
           "functions/permission-denied",
           "functions/invalid-argument",
           "functions/unauthenticated",
+          "functions/resource-exhausted",
         ].includes(e.code) ||
         ++attempt >= maxAttempts
       )
@@ -200,6 +201,7 @@ export async function upload(draft, parentSignal, progress, state, onActive = ()
     for (let n = 1; n <= count; n++)
       if (done.has(n)) bytes += Math.min(partSize, f.size - (n - 1) * partSize);
     show(index, progressBytes(bytes, 0, f.size));
+    const signed = new Map();
     for (let part = 1; part <= count; part++) {
       if (done.has(part)) continue;
       if (!f.blob)
@@ -207,14 +209,23 @@ export async function upload(draft, parentSignal, progress, state, onActive = ()
       const chunk = f.blob.slice((part - 1) * partSize, part * partSize);
       await retry(
         async () => {
-          const { url } = await media("part", { ...params, part });
+          signal.throwIfAborted();
+          if (!signed.has(part) || signed.get(part).until <= Date.now()) {
+            const numbers = Array.from({ length: count - part + 1 }, (_, i) => part + i).filter(n => !done.has(n)).slice(0, 6);
+            const issued = Date.now();
+            const { urls } = await media("parts", { ...params, parts: numbers });
+            for (const entry of urls) signed.set(entry.part, {url: entry.url, until: issued + 8 * 60000});
+          }
+          signal.throwIfAborted();
           state("Uploading clip " + (index + 1) + " of " + draft.files.length);
           show(index, progressBytes(bytes, 0, f.size));
-          await put(url, chunk, signal, (n) => show(index, progressBytes(bytes, n, f.size)));
+          try { await put(signed.get(part).url, chunk, signal, (n) => show(index, progressBytes(bytes, n, f.size))); }
+          catch (error) { signed.delete(part); throw error; }
         },
         signal,
         state,
       );
+      done.add(part); signed.delete(part);
       bytes += chunk.size;
       show(index, progressBytes(bytes, 0, f.size));
     }

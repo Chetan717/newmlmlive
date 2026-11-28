@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+test('plans initial load calls catalog and only history view calls history',()=>{const s=read('src/pages/Subscription/MainSubscription.jsx');const reload=s.slice(s.indexOf('const reload ='),s.indexOf('  useEffect(() => {\n    historyLoaded'));assert.match(reload,/payments.catalog\(force\)/);assert.doesNotMatch(reload,/payments.history/);assert.match(s,/view === "history" && !loading/);});
+test('cancel waits for in-flight work then discards remote draft, not local-only clips',()=>{const s=read('src/pages/Video/NewRequest.jsx');assert.ok(s.indexOf('await inFlight.current')<s.indexOf('await media("discard"'));assert.match(s,/if \(!id && remoteAttempted.current\)/);assert.match(s,/result.submitted/);assert.match(s,/mlmlive-video-back/);assert.match(s,/150000000/);});
+test('tab guard and final link lightweight path are wired',()=>{assert.match(read('src/components/TabBar.jsx'),/mlmlive-video-navigate/);assert.match(read('src/pages/Video/VideoService.jsx'),/api\("finalLink", \{ id \}\)/);});

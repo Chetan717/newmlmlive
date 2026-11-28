@@ -24,7 +24,7 @@ async function mockUpload(ready, abortOnFinish=false){
   Object.defineProperty(globalThis,'navigator',{configurable:true,value:{onLine:true}});
   globalThis.window={addEventListener(){},removeEventListener(){}};
   globalThis.XMLHttpRequest=class {upload={};open(method,url){this.url=url;}send(blob){calls.push('PUT:'+this.url);this.upload.onprogress({loaded:blob.size});this.status=200;this.onload();this.onloadend();}abort(){this.onabort();this.onloadend();}};
-  globalThis.__mlmMedia=async (action,{index,part})=>{calls.push(`${action}:${index}${part?':'+part:''}`);if(action==='resume')return {ready:ready.includes(index),parts:[]};if(action==='part')return {url:`${index}/${part}`};if(action==='finish'&&abortOnFinish)c.abort(new Error('paused'));return {};};
+  globalThis.__mlmMedia=async (action,{index,part,parts})=>{calls.push(`${action}:${index}${part?':'+part:''}`);if(action==='resume')return {ready:ready.includes(index),parts:[]};if(action==='part')return {url:`${index}/${part}`};if(action==='parts')return {urls:parts.map(part=>({part,url:`${index}/${part}`}))};if(action==='finish'&&abortOnFinish)c.abort(new Error('paused'));return {};};
   try{
     const source=uploadSource.replace(/^import .*;\n/gm,'').replace(/const region = .*;\n/,'').replace(/export const api = async[\s\S]*?\.data;\nexport const media = async[\s\S]*?\.data;/,'const media = (...args) => globalThis.__mlmMedia(...args);');
     const {upload}=await import('data:text/javascript;base64,'+Buffer.from(progressSource+'\n'+source).toString('base64'));
@@ -37,9 +37,9 @@ async function mockUpload(ready, abortOnFinish=false){
 test('actual upload finishes clip 1 before initiating clip 2, with finalized byte counts',async()=>{
  const {calls,frames,active}=await mockUpload([]);
  assert.ok(calls.indexOf('finish:0')<calls.indexOf('resume:1'));assert.deepEqual(active,[0,1,null]);
- assert.deepEqual(frames.at(-1),[6,6]); assert.equal(calls.filter(s=>s.startsWith('PUT:')).length,4);
+ assert.deepEqual(frames.at(-1),[6,6]); assert.equal(calls.filter(s=>s.startsWith('PUT:')).length,4);assert.equal(calls.filter(s=>s.startsWith('parts:')).length,2);
 });
-test('resume skips already finalized clips',async()=>{const {calls,frames}=await mockUpload([0]);assert.ok(!calls.includes('finish:0'));assert.ok(!calls.includes('part:0:1'));assert.deepEqual(frames.at(-1),[6,6]);});
+test('resume skips already finalized clips',async()=>{const {calls,frames}=await mockUpload([0]);assert.ok(!calls.includes('finish:0'));assert.ok(!calls.includes('parts:0'));assert.deepEqual(frames.at(-1),[6,6]);});
 test('pausing stops the next queued clip from starting',async()=>{const {calls,active}=await mockUpload([],true);assert.ok(!calls.includes('resume:1'));assert.deepEqual(active,[0,null]);});
 test('approval acknowledges current version before approving; failed acknowledgement blocks action',async()=>{
  const command=service.slice(service.indexOf('  async function command('),service.indexOf('  const r = detail?.row'));
