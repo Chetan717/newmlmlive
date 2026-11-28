@@ -33,10 +33,14 @@ test("existing UI entry points use one shared badge", () => {
   assert.match(read("src/components/AppPopup.jsx"), /<PremiumTemplateBadge template=\{popup.template\}/);
   assert.match(read("src/pages/Editor/components/ListOfTemplates.jsx"), /<PremiumTemplateBadge template=\{item\} variant="tile"/);
 });
-test("current selection drives editor badge and the badge is outside the exported stage", () => {
+test("editor and shared form preview have no badge; catalog tile and export access stay intact", () => {
   const editor=read("src/pages/Editor/GenralEditPage.jsx");
-  const badge=editor.indexOf('<PremiumTemplateBadge template={selected} variant="editor"');
-  assert.ok(badge>editor.indexOf("</Stage>"));
+  const form=read("src/pages/mainform/components/SalesExecutiveForm.jsx");
+  assert.doesNotMatch(editor, /PremiumTemplateBadge/);
+  assert.match(form, /<GeneralEditPage\s+previewOnly/);
+  assert.doesNotMatch(form, /PremiumTemplateBadge/);
+  assert.match(read("src/pages/Editor/components/ListOfTemplates.jsx"), /<PremiumTemplateBadge template=\{item\} variant="tile"/);
+  assert.doesNotMatch(read("src/components/PremiumTemplateBadge.css"), /premium-template-badge--editor/);
   assert.match(editor,/canExportPoster\(selected.templateAccess/);
   assert.match(read("src/components/PremiumTemplateBadge.jsx"), /if \(!isPremiumTemplate\(template\)\) return null/);
   assert.match(read("src/components/PremiumTemplateBadge.css"), /pointer-events: none/);
