@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ArrowLeft, Film, Play, MessageCircle, Plus, ChevronRight, RefreshCw, Check, Clock, Download, RotateCw, Clapperboard, Coins, SlidersHorizontal, CloudUpload, Sparkles, CircleHelp, ArrowRight, Scissors, CheckCircle2, Layers } from "lucide-react";
 import { Link } from "react-router";
 import { api } from "./uploads";
@@ -42,6 +43,8 @@ export default function VideoService() {
     [playing, setPlaying] = useState(false),
     [detailTab, setDetailTab] = useState("Details"),
     [note, setNote] = useState(""),
+    [needsChange, setNeedsChange] = useState(false),
+    [expanded, setExpanded] = useState(false),
     [err, error] = useState(""),
     [busy, loading] = useState(false);
   const running = useRef(false), pull = useRef(null);
@@ -75,9 +78,10 @@ export default function VideoService() {
     work(refresh);
   }, []);
   async function open(id, play = false, preserve = false) {
-    if (!preserve) { setPlaying(play); setDetailTab(play ? "Videos" : "Details"); }
+    if (!preserve) { setPlaying(play); setExpanded(false); setDetailTab(play ? "Videos" : "Details"); }
     setDetail(await api("details", { id }));
     setNote("");
+    setNeedsChange(false);
   }
   function download(id) {
     if (running.current) return;
@@ -95,12 +99,12 @@ export default function VideoService() {
   }
   async function command(action, extras = {}) {
     const r = detail.row;
-    await api(action, {
-      id: r.id,
-      version: r.version,
-      op: crypto.randomUUID(),
-      ...extras,
-    });
+    const send = (name, data = {}) => api(name, { id: r.id, version: r.version, op: crypto.randomUUID(), ...data });
+    // Keep the server's review-version requirement; a deliberate final action
+    // acknowledges review and then applies the decision to that same version.
+    if (["approve", "correct"].includes(action) && r.reviewedVersion !== r.version)
+      await send("reviewed");
+    await send(action, extras);
     await Promise.all([open(r.id, false, true), refresh()]);
   }
   const r = detail?.row, b = info?.balance;
@@ -110,7 +114,7 @@ export default function VideoService() {
   const refreshCurrent=()=>work(async()=>{await refresh();if(r)await open(r.id,false,true);});
   return <main className={`ve ${r?"ve-detail-screen":form?"ve-form-screen":"ve-home-screen"}`} ref={scrollRef} onTouchStart={e=>{const scroller=scrollRef.current?.closest(".layout-scroll-container");pull.current=!form&&!busy&&(!scroller||scroller.scrollTop<=0)?e.touches[0].clientY:null;}} onTouchEnd={e=>{if(pull.current!==null&&e.changedTouches[0].clientY-pull.current>90)refreshCurrent();pull.current=null;}} onTouchCancel={()=>{pull.current=null;}}>
     {!form && <header className="ve-topbar">
-      {r ? <button aria-label="Back to requests" onClick={()=>{setDetail(null);setPlaying(false);}}><ArrowLeft size={21}/></button> : <Link to="/" aria-label="Back to home" className="ve-back"><ArrowLeft size={21}/></Link>}
+      {r ? <button aria-label="Back to requests" onClick={()=>{setDetail(null);setPlaying(false);setExpanded(false);}}><ArrowLeft size={21}/></button> : <Link to="/" aria-label="Back to home" className="ve-back"><ArrowLeft size={21}/></Link>}
       <strong>{r?"Request Details":<><span className="ve-brand-icon"><Play size={17} fill="currentColor"/></span> MLM LIVE</>}</strong>
       <button disabled={busy} aria-label="Refresh requests" onClick={refreshCurrent}><RefreshCw size={19}/></button>
     </header>}
@@ -118,18 +122,31 @@ export default function VideoService() {
     {!info && !err && <div className="ve-empty" role="status">Loading video service…</div>}
     {info && (form ? <NewRequest info={info} onClose={()=>newForm(false)} onDone={id=>{newForm(false);work(async()=>{await refresh();await open(id);});}}/> : r ? <div className="ve-detail-body">
       <article className="ve-panel ve-detail-hero">
-        {playing && playable ? <div className="ve-player"><iframe title="Edited video preview" src={drivePreview(r.link)} allow="autoplay; fullscreen" allowFullScreen/><button onClick={()=>setPlaying(false)}>Close preview</button></div> : <Thumb row={r} large onPlay={playable?()=>setPlaying(true):undefined}/>}
+        {playing && playable ? <div className="ve-player">
+          {!expanded&&<iframe title="Edited video preview" src={drivePreview(r.link)} allow="autoplay; fullscreen" allowFullScreen/>}
+          <div className="ve-player-controls"><button type="button" onClick={()=>setExpanded(true)}>Full screen</button><button type="button" onClick={()=>{setPlaying(false);setExpanded(false);}}>Close preview</button></div>
+          {expanded&&createPortal(<div className="ve ve-local-modal ve-expanded-player" role="dialog" aria-modal="true" aria-label="Full video preview"><button type="button" className="ve-modal-close" onClick={()=>setExpanded(false)}>Close full screen ×</button><iframe title="Full edited video preview" src={drivePreview(r.link)} allow="autoplay; fullscreen" allowFullScreen/></div>,document.body)}
+        </div> : <Thumb row={r} large onPlay={playable?()=>setPlaying(true):undefined}/>}
         {r.thumbnail && !playing && <small className="ve-preview-caption">Original clip thumbnail{playable?" · Tap to play edited video":""}</small>}
         <div className="ve-detail-heading"><div><h2>#{r.id}</h2><p>{r.category}{r.other?" · "+r.other:""}</p></div><Status value={r.status}/></div>
         <nav className="ve-detail-tabs" aria-label="Request details sections">{[["Details","Overview"],["Videos","Files"],["Corrections","Revisions"],["Activity","History"]].map(([key,label])=><button type="button" aria-pressed={detailTab===key} className={detailTab===key?"primary":""} key={key} onClick={()=>setDetailTab(key)}>{label}</button>)}</nav>
       </article>
-      {detailTab==="Details" && <Timeline row={r} history={detail.history}/>}
       {["Details","Videos"].includes(detailTab) && playable && <>
         <div className={`ve-ready ${r.status==="Completed"?"":"ve-review-ready"}`}><CheckCircle2 size={24}/><strong>{r.status==="Completed"?"Your edited video is ready!":"Your video is ready for review!"}</strong></div>
         <article className="ve-panel ve-final"><h3>{r.status==="Completed"?"Final Video":"Review Video"}</h3><div className="ve-final-file"><button aria-label="Play edited video" className="ve-file-play" onClick={()=>{setPlaying(true);scrollRef.current?.closest(".layout-scroll-container")?.scrollTo({top:0,behavior:"smooth"});}}><Play fill="currentColor" size={20}/></button><div><strong>{r.status==="Completed"?"Edited video":"Edited video · v"+r.version}</strong><small>Google Drive · Video preview</small></div><a className="ve-download" href={r.link} target="_blank" rel="noreferrer" aria-label={r.status==="Completed"?"Download in Google Drive":"Open review in Google Drive"}><Download size={22}/></a></div><small>{r.status==="Completed"?"Open the video in Drive to download your final file.":"Watch your video before approving or requesting changes."}</small></article>
       </>}
-      {["Details","Videos","Corrections"].includes(detailTab) && r.status==="Under Review" && <article className="ve-panel ve-review-actions"><h3>Review your video</h3><p>Happy with the edit? Approve to complete delivery. Need changes? Request a free revision.</p>{r.reviewedVersion!==r.version?<button className="primary ve-full" disabled={busy} onClick={()=>work(()=>command("reviewed"))}><Check size={17}/> I have reviewed this version</button>:<><label>Describe the corrections required<textarea maxLength={4000} disabled={r.rounds>=r.maxRounds} value={note} placeholder="Tell us what needs changing…" onChange={e=>setNote(e.target.value)}/></label><button className="ve-outline ve-full" disabled={busy||r.rounds>=r.maxRounds||!note.trim()} onClick={()=>work(()=>command("correct",{note}))}><RotateCw size={18}/> Request Revision</button><button className="primary ve-full" disabled={busy} onClick={()=>{if(window.confirm("Are you satisfied with your edited video? Approving this video will complete your request and consume 1 video editing credit."))work(()=>command("approve",{confirmed:true}));}}><CheckCircle2 size={18}/> Approve final video</button></>}</article>}
-      {["Details","Corrections"].includes(detailTab) && <article className="ve-panel ve-corrections"><h3><RotateCw size={18}/> Revision rounds <span>{r.rounds} / {r.maxRounds}</span></h3><p>{Math.max(0,r.maxRounds-r.rounds)} free revisions remaining · No extra credit</p>{r.status==="Completed"&&<small>Final video approved. Revisions are available during review only.</small>}{r.remarks&&<p>Editor remarks · {r.remarks}</p>}{detailTab==="Corrections"&&detail.history.filter(h=>h.correction).map((h,i)=><p key={i}>{fmt(h.time)} · {h.correction}</p>)}{detailTab==="Corrections"&&detail.cursor&&<small>Older revision history is available in History.</small>}</article>}
+      {["Details","Videos","Corrections"].includes(detailTab) && r.status==="Under Review" && <article className="ve-panel ve-review-actions">
+        <h3>Happy with your video?</h3><p>Watch the video, then choose an option.</p>
+        <div className="ve-review-choice">
+          <button className="primary" disabled={busy||!playable} onClick={()=>{if(window.confirm("Have you watched the video and are you happy with it? Final approval completes your request and uses 1 video credit."))work(()=>command("approve",{confirmed:true}));}}><CheckCircle2 size={18}/> Approve Final</button>
+          <button className="ve-outline" disabled={busy||!playable||r.rounds>=r.maxRounds} aria-expanded={needsChange} onClick={()=>setNeedsChange(v=>!v)}><RotateCw size={17}/> Need Change</button>
+        </div>
+        <small>{Math.max(0,r.maxRounds-r.rounds)} free revisions remaining</small>
+        {needsChange&&r.rounds<r.maxRounds&&<div className="ve-change-form"><label>What should we change?<textarea maxLength={4000} value={note} placeholder="Tell us what needs changing…" onChange={e=>setNote(e.target.value)}/></label><button className="primary ve-full" disabled={busy||!note.trim()} onClick={()=>work(()=>command("correct",{note:note.trim()}))}>Send change request</button></div>}
+        {r.rounds>=r.maxRounds&&<small>All free revisions used. Contact support for help.</small>}
+      </article>}
+      {detailTab==="Details" && <Timeline row={r} history={detail.history}/>}
+      {(detailTab==="Corrections"||(detailTab==="Details"&&r.status!=="Under Review")) && <article className="ve-panel ve-corrections"><h3><RotateCw size={18}/> Revision rounds <span>{r.rounds} / {r.maxRounds}</span></h3><p>{Math.max(0,r.maxRounds-r.rounds)} free revisions remaining · No extra credit</p>{r.status==="Completed"&&<small>Final video approved. Revisions are available during review only.</small>}{r.remarks&&<p>Editor remarks · {r.remarks}</p>}{detailTab==="Corrections"&&detail.history.filter(h=>h.correction).map((h,i)=><p key={i}>{fmt(h.time)} · {h.correction}</p>)}{detailTab==="Corrections"&&detail.cursor&&<small>Older revision history is available in History.</small>}</article>}
       {detailTab==="Details" && <details className="ve-panel ve-info-expand"><summary>Request information</summary><dl className="ve-info"><dt>Request ID</dt><dd>{r.id}</dd><dt>Category</dt><dd>{r.category} {r.other}</dd><dt>Customer</dt><dd>{r.name} · {r.mobile}</dd><dt>Company / state</dt><dd>{r.company} · {r.state}</dd><dt>Submitted</dt><dd>{fmt(r.created)}</dd><dt>Instructions</dt><dd className="note">{r.instructions}</dd></dl></details>}
       {detailTab==="Videos"&&<article className="ve-panel"><h3>Raw clips</h3>{r.rawDeleted?<p>Originals deleted</p>:(r.files||[]).map((f,i)=><div className="ve-raw-file" key={i}><Film size={20}/><span>{f.name}<small>{(f.size/1e6).toFixed(1)} MB</small></span></div>)}{r.rawCleanupPending&&<p>Raw video cleanup pending.</p>}</article>}
       {detailTab==="Details"&&r.status==="Submitted"&&<button className="ve-danger ve-full" disabled={busy} onClick={()=>{const reason=window.prompt("Why are you cancelling this request?");if(reason?.trim()&&window.confirm("Cancel this request and permanently remove its raw clips?"))work(()=>command("cancel",{note:reason}));}}>Cancel request</button>}

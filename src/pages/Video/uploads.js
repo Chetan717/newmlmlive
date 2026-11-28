@@ -7,10 +7,6 @@ export const api = async (action, data = {}) =>
 export const media = async (action, data = {}) =>
   (await httpsCallable(region, "videoEditingMedia")({ ...data, action })).data;
 const options = import.meta.env || {};
-const parallelFiles = Math.max(
-  1,
-  Math.min(3, Math.trunc(Number(options.VITE_VIDEO_UPLOAD_CONCURRENCY) || 1)),
-);
 const maxAttempts = Math.max(
   1,
   Math.min(10, Math.trunc(Number(options.VITE_VIDEO_UPLOAD_ATTEMPTS) || 5)),
@@ -177,7 +173,7 @@ export async function retry(task, signal, state) {
     }
   }
 }
-export async function upload(draft, parentSignal, progress, state) {
+export async function upload(draft, parentSignal, progress, state, onActive = () => {}) {
   const child = new AbortController(),
     signal = child.signal;
   const stop = () => child.abort(parentSignal.reason);
@@ -226,25 +222,16 @@ export async function upload(draft, parentSignal, progress, state) {
     await retry(() => media("finish", params), signal, state);
     show(index, f.size);
   }
-  const queue = draft.files.keys();
-  const jobs = Array.from(
-    { length: Math.min(parallelFiles, draft.files.length) },
-    async () => {
-      try {
-        for (const index of queue) {
-          signal.throwIfAborted();
-          await one(index);
-        }
-      } catch (e) {
-        if (!signal.aborted) child.abort(e);
-        throw e;
-      }
-    },
-  );
   try {
-    const results = await Promise.allSettled(jobs);
-    if (results.some((r) => r.status === "rejected")) throw signal.reason;
+    // Finish the current clip (including multipart finalization) before starting the next.
+    progress([...loaded]);
+    for (let index = 0; index < draft.files.length; index++) {
+      signal.throwIfAborted();
+      onActive(index);
+      await one(index);
+    }
   } finally {
+    onActive(null);
     parentSignal.removeEventListener("abort", stop);
   }
 }

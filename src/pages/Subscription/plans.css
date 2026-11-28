@@ -991,3 +991,9 @@
 .mlm-plans-page .mlm-plans-hero { min-height:166px; padding-top:64px; }
 .mlm-plans-hero .mlm-brand-strip { position:absolute; inset:0 0 auto; height:51px; margin:0; padding:0 18px; justify-content:center; background:var(--plans-gradient); color:#fff; font-size:17px; }
 .mlm-plans-hero > .mlm-plan-art { top:calc(50% + 25px); }
+
+/* Active subscriptions first — no promotional hero on the Plans tab. */
+.mlm-plans-no-hero .mlm-plans-content { margin-top:0; padding-top:16px; }
+.mlm-plans-no-hero .mlm-active-first { margin-top:0; }
+.mlm-plans-no-hero .mlm-active-first .mlm-section-heading { margin:0 0 12px; }
+.mlm-plans-no-hero .mlm-no-active { margin:0; padding:12px 14px; border:1px solid #e0e8f5; border-radius:12px; background:#fff; color:#526481; font-size:13px; }

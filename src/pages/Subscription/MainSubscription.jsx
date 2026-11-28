@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   CalendarDays,
-  CirclePlay,
   ShieldCheck,
   ChevronRight,
   Clock,
@@ -28,7 +27,6 @@ import {
   money,
 } from "./planState.mjs";
 import "./plans.css";
-import PlanArtwork from "./PlanArtwork";
 import PlanBanner from "./PlanBanner";
 
 function PlanCard({ plan, onChoose, priority = false }) {
@@ -321,33 +319,14 @@ export default function MainSubscription() {
   };
   return (
     <div
-      className={`mlm-plans mlm-plans-page ${view === "result" ? "mlm-result-page" : ""}`}
+      className={`mlm-plans mlm-plans-page ${view === "result" ? "mlm-result-page" : view === "plans" ? "mlm-plans-no-hero" : ""}`}
     >
-      {view !== "result" && (
-        <header className={`mlm-plans-header ${view === "plans" ? "mlm-plans-hero" : ""}`}>
-          {view === "plans" && <div className="mlm-hero-brand mlm-brand-strip"><CirclePlay size={23} fill="#ffffff" stroke="#1768e6"/> MLM LIVE</div>}
-          <div className="mlm-header-content">
-            <div className="mlm-title-row">
-              {view !== "plans" && (
-                <button
-                  className="mlm-back"
-                  aria-label="Back to plans"
-                  onClick={() => setView("plans")}
-                >
-                  <ArrowLeft size={22} />
-                </button>
-              )}
-              <h1>
-                {view === "my"
-                  ? "My plan"
-                  : view === "history"
-                    ? "Purchase history"
-                    : "Plans"}
-              </h1>
-            </div>
-            {view === "plans" && <p className="mlm-hero-subtitle">Choose the right plan for your branding and content needs.</p>}
-          </div>
-          {view === "plans" && <PlanArtwork hero kind="video"/>}
+      {view !== "result" && view !== "plans" && (
+        <header className="mlm-plans-header">
+          <div className="mlm-header-content"><div className="mlm-title-row">
+            <button className="mlm-back" aria-label="Back to plans" onClick={() => setView("plans")}><ArrowLeft size={22}/></button>
+            <h1>{view === "my" ? "My plan" : "Purchase history"}</h1>
+          </div></div>
         </header>
       )}
       <PaymentSheet open={showPremiumPrompt} title="Premium design" onClose={closePremiumPrompt}
@@ -589,9 +568,10 @@ export default function MainSubscription() {
               </section>
             ) : (
               <>
-                {groups.size > 0 && (
-                  <section className="mlm-active-list">
-                    {view === "plans" && <h2 className="mlm-section-heading">My active plans</h2>}
+                {(view === "plans" || groups.size > 0) && (
+                  <section className="mlm-active-list mlm-active-first" aria-label="My active plans">
+                    {view === "plans" && <h2 className="mlm-section-heading">My Active Plans</h2>}
+                    {!loading && !error && groups.size === 0 && <p className="mlm-no-active">No active plans yet. Choose a plan below to get started.</p>}
                     {[...groups.entries()].map(([id, grants]) => (
                       <ActiveCard
                         key={id}
