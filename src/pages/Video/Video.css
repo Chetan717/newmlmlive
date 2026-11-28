@@ -43,3 +43,8 @@
 .ve .ve-review-choice button svg {flex:none;}
 .ve .ve-change-form {display:grid;gap:10px;padding-top:6px;}
 @media(max-width:340px){.ve .ve-review-choice {grid-template-columns:1fr;}}
+
+/* Customer request list: small accessible fallback for scroll pagination. */
+.ve .ve-page-boundary{display:flex;flex-direction:column;align-items:center;gap:6px;margin:4px 0 12px;min-height:36px;text-align:center}
+.ve .ve-page-boundary small{color:#b42318;font-size:12px;overflow-wrap:anywhere}
+.ve .ve-page-next{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:36px;width:auto;max-width:100%;padding:6px 13px;font-size:12px;font-weight:600;border-radius:10px}

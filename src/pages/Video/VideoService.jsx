@@ -46,8 +46,10 @@ export default function VideoService() {
     [needsChange, setNeedsChange] = useState(false),
     [expanded, setExpanded] = useState(false),
     [err, error] = useState(""),
-    [busy, loading] = useState(false);
-  const running = useRef(false), pull = useRef(null);
+    [busy, loading] = useState(false),
+    [pageError, setPageError] = useState(""),
+    [loadingMore, setLoadingMore] = useState(false);
+  const running = useRef(false), pull = useRef(null), loadBoundary = useRef(null);
   async function work(fn) {
     if (running.current) return;
     running.current = true;
@@ -65,11 +67,22 @@ export default function VideoService() {
   async function list(value = status, more = false) {
     const result = await api("list", {
       ...(value ? { filter: "status", value } : {}),
-      size: 10,
+      size: 5,
       cursor: more ? cursor : null,
     });
     setRows((r) => (more ? [...new Map([...r, ...result.rows].map(x => [x.id, x])).values()] : result.rows));
-    page(result.cursor);
+    page(result.cursor && (!more || result.cursor !== cursor) ? result.cursor : null);
+    setPageError("");
+  }
+  function loadMore() {
+    if (!cursor || running.current || form || detail) return;
+    return work(async () => {
+      setLoadingMore(true);
+      setPageError("");
+      try { await list(status, true); }
+      catch (e) { setPageError(e.message || "Could not load more requests."); }
+      finally { setLoadingMore(false); }
+    });
   }
   async function refresh() {
     await Promise.all([api("dashboard").then(setInfo), list()]);
@@ -111,6 +124,35 @@ export default function VideoService() {
   const playable = !!(r?.link && ["Completed","Under Review"].includes(r.status) && drivePreview(r.link));
   const scrollRef=useRef(null);
   useEffect(()=>{scrollRef.current?.closest(".layout-scroll-container")?.scrollTo({top:0});},[form,r?.id]);
+  // Layout scrolls inside its own container, not the window in the mobile WebView.
+  // Only start another batch in response to scrolling near the list boundary.
+  // Re-attaching after a fetch does not itself fetch, so short lists cannot cascade.
+  useEffect(() => {
+    const boundary = loadBoundary.current;
+    if (!boundary || !cursor || !info || form || detail || busy || err || pageError) return;
+    const scroller = scrollRef.current?.closest(".layout-scroll-container");
+    const target = scroller || window;
+    let frame = null;
+    let disposed = false;
+    const onScroll = () => {
+      if (frame !== null || running.current) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        if (disposed || running.current) return;
+        const rect = boundary.getBoundingClientRect();
+        const viewport = scroller?.getBoundingClientRect();
+        const bottom = viewport?.bottom ?? window.innerHeight;
+        const top = viewport?.top ?? 0;
+        if (rect.top <= bottom + 64 && rect.bottom >= top) loadMore();
+      });
+    };
+    target.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      disposed = true;
+      target.removeEventListener("scroll", onScroll);
+      if (frame !== null) window.cancelAnimationFrame(frame);
+    };
+  }, [cursor, status, info, form, detail, busy, err, pageError]);
   const refreshCurrent=()=>work(async()=>{await refresh();if(r)await open(r.id,false,true);});
   return <main className={`ve ${r?"ve-detail-screen":form?"ve-form-screen":"ve-home-screen"}`} ref={scrollRef} onTouchStart={e=>{const scroller=scrollRef.current?.closest(".layout-scroll-container");pull.current=!form&&!busy&&(!scroller||scroller.scrollTop<=0)?e.touches[0].clientY:null;}} onTouchEnd={e=>{if(pull.current!==null&&e.changedTouches[0].clientY-pull.current>90)refreshCurrent();pull.current=null;}} onTouchCancel={()=>{pull.current=null;}}>
     {!form && <header className="ve-topbar">
@@ -158,9 +200,12 @@ export default function VideoService() {
         <div className="ve-benefits">{[[SlidersHorizontal,"Professional","Editing"],[Clock,"Easy","Delivery"],[Layers,"Free","Revisions"]].map(([Icon,a,b],i)=><div key={a}><span className={`ve-benefit-icon benefit-${i}`}><Icon size={21}/></span><strong>{a}<br/>{b}</strong></div>)}</div>
         <article className="ve-panel ve-credit"><div className="ve-credit-icon"><Coins size={25}/></div><div className="ve-credit-copy"><strong>Video Credits</strong><div><b>{b.available}</b> Credits Available</div></div><Link className="primary ve-buy" to="/subscription">{b.available>0?"View Plans":"Buy Credits"}</Link></article>
         {b.available>0&&b.eligible?<button className="primary ve-new-request" onClick={()=>newForm(true)}><Plus size={23}/> New Video Request</button>:<article className="ve-panel ve-locked"><p>{b.eligible?"You have no available video credits.":"An active Video Editing Service or Combo plan is required."}</p><Link className="primary ve-full" to="/subscription">View plans <ArrowRight size={17}/></Link></article>}
-        <div className="ve-list-heading"><h2>My Requests</h2><select aria-label="Filter requests by status" disabled={busy} value={status} onChange={e=>{const v=e.target.value;filter(v);work(()=>list(v));}}><option value="">All statuses</option>{info.statuses.map(s=><option key={s}>{s}</option>)}</select></div>
+        <div className="ve-list-heading"><h2>My Requests</h2><select aria-label="Filter requests by status" disabled={busy} value={status} onChange={e=>{const v=e.target.value;filter(v);setRows([]);page(null);setPageError("");work(()=>list(v));}}><option value="">All statuses</option>{info.statuses.map(s=><option key={s}>{s}</option>)}</select></div>
         <div className="ve-panel ve-request-list" aria-busy={busy}>{rows.map(row=><div className="ve-request-item" key={row.id}><button className="ve-request-card" disabled={busy} onClick={()=>work(()=>open(row.id))}><span className="ve-thumb">{row.thumbnail?<img src={row.thumbnail} alt="Original clip thumbnail" loading="lazy"/>:<Film size={24}/>} {row.version>0&&["Completed","Under Review"].includes(row.status)&&<span className="ve-play"><Play size={13} fill="currentColor"/></span>}{row.duration>0&&<small className="ve-duration">{duration(row.duration)}</small>}</span><span className="ve-card-copy"><strong>#{row.id}</strong><span>{row.category}</span><small>{date(row.created)}</small><Status value={row.status}/></span><ChevronRight size={20} className="ve-chevron"/></button>{row.version>0&&["Completed","Under Review"].includes(row.status)&&<div className="ve-card-actions"><button disabled={busy} onClick={()=>work(()=>open(row.id,true))}><Play size={15}/> Preview video</button>{row.status==="Completed"&&<button disabled={busy} onClick={()=>download(row.id)}><Download size={15}/> Download</button>}</div>}</div>)}{!rows.length&&<div className="ve-empty"><Clapperboard size={34}/><strong>{busy?"Loading requests…":"No requests yet"}</strong><small>{busy?"":"Your video requests will appear here."}</small></div>}</div>
-        {cursor&&<button className="ve-outline ve-full" disabled={busy} onClick={()=>work(()=>list(status,true))}>Load more requests <ChevronRight size={16}/></button>}
+        {cursor&&<div className="ve-page-boundary" ref={loadBoundary} aria-busy={loadingMore}>
+          {pageError&&<small role="alert">{pageError}</small>}
+          <button type="button" className="ve-outline ve-page-next" disabled={busy} onClick={loadMore}>{loadingMore?"Loading requests…":pageError?"Retry loading requests":"Load more requests"}{!loadingMore&&<ChevronRight size={15}/>}</button>
+        </div>}
         <article className="ve-panel ve-how"><h3>How It Works?</h3><div className="ve-how-steps">{[[CloudUpload,"Upload","Your Video"],[SlidersHorizontal,"Our Team","Edits It"],[Film,"Receive","Final Video"]].map(([Icon,a,b],i)=><div key={a}><span><Icon size={26}/></span><strong>{a}</strong><small>{b}</small>{i<2&&<ChevronRight className="ve-how-arrow" size={19}/>}</div>)}</div></article>
         <Support info={info}/>
       </div>
