@@ -1,3 +1,4 @@
+import PremiumTemplateBadge from "../../../components/PremiumTemplateBadge";
 import React, { useEffect, useRef, useState } from "react";
 import { TTrend_templateService } from "./Services/TTrend_templateService";
 import { useNavigate } from "react-router";
@@ -199,6 +200,7 @@ export default function Carosel() {
                 className={`${slideClassName} active:scale-[0.995]`}
               >
                 {image}
+                <PremiumTemplateBadge template={item} />
               </button>
             );
           })}

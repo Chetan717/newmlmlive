@@ -1,3 +1,5 @@
+import PremiumTemplateBadge from "../../../components/PremiumTemplateBadge";
+import { isPremiumTemplate } from "../../../utils/templatePremium.js";
 import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { useGeneralData } from "../../../Context/GeneralContext";
 import { useNavigate } from "react-router";
@@ -390,8 +392,8 @@ const CheckIcon = ({ size = "sm" }) => {
   );
 };
 
-const NewBadge = () => (
-  <div className="absolute top-2 left-2 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-accent shadow-md pointer-events-none">
+const NewBadge = ({ lower = false }) => (
+  <div className={`absolute ${lower ? "bottom-2" : "top-2"} left-2 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-accent shadow-md pointer-events-none`}>
     <span className="relative flex h-1.5 w-1.5 shrink-0">
       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-70" />
       <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white" />
@@ -697,7 +699,8 @@ function ListOfGenaraltemp({ templates, loading, searchQuery, companyName }) {
                       <ImageIcon className="h-4 w-4" strokeWidth={1.6} />
                     </div>
                   )}
-                  {isNewSubtype(item) ? <NewBadge /> : null}
+                  <PremiumTemplateBadge template={item} />
+                  {isNewSubtype(item) ? <NewBadge lower={isPremiumTemplate(item)} /> : null}
                 </div>
 
                 <div
@@ -838,7 +841,8 @@ function ListOfGenaraltemp({ templates, loading, searchQuery, companyName }) {
                             <ImageIcon className="h-4 w-4" strokeWidth={1.6} />
                           </div>
                         )}
-                        {isNewSubtype(item) ? <NewBadge /> : null}
+                        <PremiumTemplateBadge template={item} />
+                        {isNewSubtype(item) ? <NewBadge lower={isPremiumTemplate(item)} /> : null}
                       </div>
                       <div className="flex h-[27px] items-center px-2">
                         <AutoScrollCardLabel label={label} />

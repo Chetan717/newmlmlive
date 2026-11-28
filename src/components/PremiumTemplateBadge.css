@@ -1,0 +1,28 @@
+.premium-template-badge {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  max-width: calc(100% - 8px);
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: #f5c451;
+  color: #1a1200;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: .025em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+  box-shadow: 0 1px 4px #0003;
+}
+.premium-template-badge svg { flex: 0 0 auto; }
+.premium-template-badge--overlay { position: absolute; top: 6px; left: 6px; z-index: 12; }
+.premium-template-badge--tile { position: absolute; top: 4px; left: 4px; z-index: 12; font-size: 8px; padding: 3px 4px; gap: 2px; }
+.premium-template-badge--tile svg { width: 9px; height: 9px; }
+.premium-template-badge--editor { position: absolute; top: 8px; left: 8px; z-index: 30; font-size: 11px; padding: 5px 9px; }
+.premium-template-badge--inline { margin-top: 4px; vertical-align: middle; }

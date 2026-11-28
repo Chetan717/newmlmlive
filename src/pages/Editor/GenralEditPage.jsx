@@ -1,3 +1,4 @@
+import PremiumTemplateBadge from "../../components/PremiumTemplateBadge";
 import React, {
   useState,
   useEffect,
@@ -4819,6 +4820,9 @@ function GeneralEditPage({
               </Layer>
             </Stage>
           </div>
+
+          {/* UI-only catalog indicator; outside Konva Stage, never part of exported artwork. */}
+          <PremiumTemplateBadge template={selected} variant="editor" />
 
           {/* Editor-only DOM hints: not children of Konva Stage, so never exported. */}
           {!previewOnly && !isVideoUnavailable && !!bgImage && (

@@ -1,3 +1,5 @@
+import PremiumTemplateBadge from "../../../components/PremiumTemplateBadge";
+import { isPremiumTemplate } from "../../../utils/templatePremium.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { ArrowLeft, Check, ChevronRight, Compass } from "lucide-react";
@@ -176,13 +178,14 @@ function ShowcaseCard({
         alt="GraphicsLink showcase"
         aggressiveLazy={aggressiveLazy}
       />
+      <PremiumTemplateBadge template={template} />
       {isNewTemplate(template?.serial) && (
-        <span className="absolute left-1.5 top-1.5 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-white shadow">
+        <span className={`absolute left-1.5 ${isPremiumTemplate(template) ? "bottom-1.5" : "top-1.5"} rounded-full bg-emerald-500 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-white shadow`}>
           New
         </span>
       )}
       {selected && (
-        <span className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-accent shadow-md dark:border-[#0b0f19]">
+        <span className={`absolute right-1.5 ${isPremiumTemplate(template) ? "bottom-1.5" : "top-1.5"} flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-accent shadow-md dark:border-[#0b0f19]`}>
           <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
         </span>
       )}
@@ -307,6 +310,7 @@ function SubtypeChoiceCard({ section, parentType, onOpenGrid }) {
         alt={subtypeLabel}
         aggressiveLazy
       />
+      <PremiumTemplateBadge template={previewGraphic?._template} />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/75 via-black/30 to-transparent px-2.5 pb-2 pt-8 text-white">
         <div className="flex items-center gap-1">
           <span className="min-w-0 flex-1 truncate text-[10px] font-bold">

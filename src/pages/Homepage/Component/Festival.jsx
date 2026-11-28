@@ -1,3 +1,4 @@
+import PremiumTemplateBadge from "../../../components/PremiumTemplateBadge";
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Festival_template } from "./Services/Festival_template";
 import { useGeneralData } from "../../.././Context/GeneralContext";
@@ -355,6 +356,7 @@ export default function Festival() {
                             loading="lazy"
                             decoding="async"
                           />
+                          <PremiumTemplateBadge template={card} />
                           <div className="absolute bottom-1.5 right-1.5 flex h-[22px] min-w-[22px] items-center justify-center rounded-[7px] bg-accent/90 px-1.5 backdrop-blur-sm">
                             <span className="text-[10px] font-bold leading-none text-white">
                               {d.day}

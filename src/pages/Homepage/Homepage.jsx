@@ -1,3 +1,4 @@
+import PremiumTemplateBadge from "../../components/PremiumTemplateBadge";
 import Carosel from "./Component/Carosel";
 import Festival from "./Component/Festival";
 import ListOfGenaraltemp from "./Component/ListOfGenaraltemp";
@@ -319,6 +320,7 @@ function SearchSuggestions({ results, searchQuery, onSelect, loading }) {
                 <p className="text-xs text-muted-foreground truncate mt-0.5">
                   {categoryName}
                 </p>
+                <PremiumTemplateBadge template={item} variant="inline" />
               </div>
               <svg
                 className="w-4 h-4 text-muted-foreground shrink-0"

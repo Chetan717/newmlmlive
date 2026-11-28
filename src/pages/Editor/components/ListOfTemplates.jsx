@@ -1,3 +1,5 @@
+import PremiumTemplateBadge from "../../../components/PremiumTemplateBadge";
+import { isPremiumTemplate } from "../../../utils/templatePremium.js";
 import React, {
   useState,
   useEffect,
@@ -409,6 +411,7 @@ const Tile = React.memo(function Tile({ item, isSelected, onSelect, isVideo }) {
         </div>
       )}
 
+      <PremiumTemplateBadge template={item} variant="tile" />
       {isVideo && (
         <div className="absolute bottom-1 left-1 bg-black/60 backdrop-blur-sm rounded px-1 py-0.5">
           <svg width="8" height="8" viewBox="0 0 24 24" fill="white">
@@ -418,7 +421,7 @@ const Tile = React.memo(function Tile({ item, isSelected, onSelect, isVideo }) {
       )}
 
       {isSelected && (
-        <div className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#2F80EA] shadow">
+        <div className={`absolute right-1.5 ${isPremiumTemplate(item) ? "bottom-1.5" : "top-1.5"} flex h-5 w-5 items-center justify-center rounded-full bg-[#2F80EA] shadow`}>
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
             <polyline
               points="1.5,5 4,7.5 8.5,2.5"

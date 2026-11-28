@@ -1,3 +1,4 @@
+import PremiumTemplateBadge from "./PremiumTemplateBadge";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router";
@@ -87,7 +88,8 @@ function PopupDialog({ popup, onDismiss, onAction }) {
         >
           <X className="h-5 w-5" />
         </button>
-        <div className="flex min-h-32 items-center justify-center bg-[#EAF1FB] dark:bg-[#172235]">
+        <div className="relative flex min-h-32 items-center justify-center bg-[#EAF1FB] dark:bg-[#172235]">
+          {popup.kind === "template" && <PremiumTemplateBadge template={popup.template} />}
           {preview.video ? (
             <video
               src={preview.url}
