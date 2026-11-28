@@ -4,7 +4,7 @@ import PlanBanner from "./PlanBanner";
 import { flushSync } from "react-dom";
 import { getUser } from "../../utils/authStorage";
 import { payments, paymentMessage } from "../../services/paymentService";
-import { isPaid, serviceLabel } from "../../services/paymentClientCore.mjs";
+import { isPaid, serviceLabel, matchesCheckout } from "../../services/paymentClientCore.mjs";
 import {
   ensurePaymentCheckout,
   openPaymentCheckout,
@@ -59,16 +59,10 @@ export function CheckoutModal({
     if (!isOpen || !plan?.planId) return;
     completed.current = "";
     setMessage("");
-    const saved = refresh(),
-      code = saved?.couponCode ?? suggestedCoupon;
+    refresh();
+    const code = suggestedCoupon;
     setCoupon(code);
-    if (saved?.checkout && saved.planId === plan.planId)
-      setQuote({
-        ...saved.checkout,
-        quoteId: saved.quoteId,
-        couponCode: saved.couponCode,
-      });
-    else void loadQuote(code);
+    void loadQuote(code);
     return () => {
       version.current++;
     };
@@ -86,7 +80,7 @@ export function CheckoutModal({
     const status = result?.status || "pending";
     setMessage(
       ["failed", "expired"].includes(status)
-        ? "This payment was not completed. Check its status before starting a new payment."
+        ? "Payment was not completed. You can choose a plan and try again."
         : "Payment confirmation is pending. If money was debited, do not pay again.",
     );
     onPaymentResult?.(result || { status: "pending" });
@@ -114,20 +108,15 @@ export function CheckoutModal({
     setMessage("Preparing secure checkout…");
     try {
       await ensurePaymentCheckout();
-      const saved = payments.readPending();
-      if (saved && saved.planId !== plan.planId)
-        throw Error("An earlier payment is pending. Check that payment first.");
-      const order = saved
-        ? await payments.recover()
-        : await payments.create(quote);
+      const order = await payments.startFresh(quote);
       refresh();
-      if (
-        isPaid(order) ||
-        !order?.orderId ||
-        !["created", "pending"].includes(order.status)
-      ) {
+      if (order?.previousCheckout || isPaid(order) || !order?.orderId || order.status !== "created") {
         await finish(order);
         return;
+      }
+      if (!matchesCheckout(order, quote) || order.plan.planId !== plan.planId) {
+        setQuote(null);
+        throw Error("Checkout amount or plan changed. No payment opened. Refresh the price before trying again.");
       }
       // Commit the removal of our dialog, focus handlers and scroll lock BEFORE
       // Razorpay mounts its separate iframe/native screen. No external overlay is inert.
@@ -139,11 +128,13 @@ export function CheckoutModal({
       } finally {
         setGatewayOpen(false);
       }
-      setMessage("Confirming your payment…");
+      setMessage("Confirming your payment… Please do not close the app.");
       const result =
         outcome.status === "verify" && outcome.response
           ? await payments.verify(order.purchaseId, outcome.response)
-          : await payments.recover();
+          : outcome.status === "pending" && !/checkout closed/i.test(outcome.message || "")
+            ? await payments.recover(false)
+            : await payments.closePrevious();
       await finish(result);
     } catch (e) {
       setGatewayOpen(false);
@@ -161,9 +152,22 @@ export function CheckoutModal({
       onBack?.();
     }
   }, [setIsOpen, onBack]);
+  useEffect(() => {
+    if (!busy) return;
+    const unload = e => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", unload);
+    return () => window.removeEventListener("beforeunload", unload);
+  }, [busy]);
+  useEffect(() => {
+    if (!isOpen) return;
+    const back = () => { if (!busyRef.current) close(); else if (!gatewayOpen) setMessage("Payment is processing. Please do not close the app or go back until confirmation."); };
+    window.addEventListener("mlmlive-payment-back", back);
+    return () => window.removeEventListener("mlmlive-payment-back", back);
+  }, [isOpen, close, gatewayOpen]);
   if (!plan) return null;
   const price = quote?.price;
-  return (
+  return (<>
+    {isOpen && gatewayOpen && <div className="mlm-payment-progress" role="status" aria-live="polite"><ShieldCheck size={18}/> Payment in progress. Please do not close the app until payment is complete.</div>}
     <PaymentSheet
       open={isOpen && !gatewayOpen}
       title="Secure checkout"
@@ -185,9 +189,7 @@ export function CheckoutModal({
             <LockKeyhole size={19} />
             {busy
               ? "Please wait…"
-              : pending
-                ? "Resume this checkout"
-                : `Continue to pay ${price ? money(price.totalPaise) : ""}`}
+              : `Continue to pay ${price ? money(price.totalPaise) : ""}`}
           </button>
           <div className="mlm-secure-footer"><ShieldCheck size={20}/><span>Secured by <strong>Razorpay</strong></span></div>
           {!quote && !loading && (
@@ -220,7 +222,7 @@ export function CheckoutModal({
             aria-label="Coupon code"
             value={coupon}
             maxLength={6}
-            disabled={busy || Boolean(pending)}
+            disabled={busy}
             placeholder="Enter coupon code"
             onChange={(e) => {
               setCoupon(
@@ -233,7 +235,6 @@ export function CheckoutModal({
             disabled={
               busy ||
               loading ||
-              Boolean(pending) ||
               (coupon.length > 0 && coupon.length !== 6)
             }
             onClick={() => loadQuote(coupon)}
@@ -242,7 +243,7 @@ export function CheckoutModal({
           </button>
         </div>
       </label>
-      {!pending && coupon && (
+      {coupon && (
         <button
           disabled={busy || loading}
           className="mlm-text-button"
@@ -283,6 +284,7 @@ export function CheckoutModal({
           <p>Refresh the price before continuing.</p>
         )}
       </div>
+      <p className="mlm-notice mlm-payment-warning" role="note"><ShieldCheck size={18}/> Please do not close the app, refresh, or go back until payment is complete. You may switch to your UPI app when prompted.</p>
       {message && (
         <p role="status" className="mlm-notice">
           {message}
@@ -290,9 +292,9 @@ export function CheckoutModal({
       )}
       {pending?.checkout?.orderId && (
         <p className="mlm-small mlm-muted mlm-break">
-          Order: {pending.checkout.orderId}
+          Previous order for status check: {pending.checkout.orderId}
         </p>
       )}
-    </PaymentSheet>
+    </PaymentSheet></>
   );
 }

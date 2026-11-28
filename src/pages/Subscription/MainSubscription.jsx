@@ -113,6 +113,42 @@ export default function MainSubscription() {
     [notice, setNotice] = useState(""),
     [legacy, setLegacy] = useState(null),
     [legacyBusy, setLegacyBusy] = useState(false);
+  // One same-URL history entry protects the internal checkout stack. Browser
+  // Back and older native WebViews stay in the payment screen during processing.
+  const internalBackRef = useRef(null);
+  const internalActive = checkout || details || showPremiumPrompt || view !== "plans";
+  internalBackRef.current = { active: internalActive, checkout, back: () => {
+    if (checkout) window.dispatchEvent(new Event("mlmlive-payment-back"));
+    else if (details) setDetails(false);
+    else if (showPremiumPrompt) setShowPremiumPrompt(false);
+    else setView("plans");
+  }};
+  useEffect(() => {
+    const back = () => { if (!internalBackRef.current?.active) return; internalBackRef.current.back(); };
+    const nativeBack = () => { if (internalBackRef.current?.active && !internalBackRef.current.checkout) back(); };
+    window.addEventListener("mlmlive-payment-back", nativeBack);
+    return () => window.removeEventListener("mlmlive-payment-back", nativeBack);
+  }, []);
+  useEffect(() => {
+    if (!internalActive) {
+      if (window.history.state?.mlmPaymentInternal) window.history.back();
+      return;
+    }
+    const page = window.location.pathname;
+    const push = () => window.history.pushState({ ...window.history.state, mlmPaymentInternal: true }, "", window.location.href);
+    if (!window.history.state?.mlmPaymentInternal) push();
+    const pop = () => {
+      if (window.location.pathname !== page || !internalBackRef.current?.active || window.history.state?.mlmPaymentInternal) return;
+      push();
+      internalBackRef.current.back();
+    };
+    window.addEventListener("popstate", pop);
+    window.ReactNativeWebView?.postMessage(JSON.stringify({ type: "PAYMENT_NAV_GUARD", active: true }));
+    return () => {
+      window.removeEventListener("popstate", pop);
+      window.ReactNativeWebView?.postMessage(JSON.stringify({ type: "PAYMENT_NAV_GUARD", active: false }));
+    };
+  }, [internalActive]);
   const [historyBusy, setHistoryBusy] = useState(false);
   const historyInFlight = useRef(false), historyLoaded = useRef(false);
   const reload = useCallback(
@@ -358,6 +394,7 @@ export default function MainSubscription() {
         )}
         {view === "result" && outcome ? (
           <section className="mlm-result">
+            <button type="button" className="mlm-secondary mlm-result-back" onClick={() => setView("plans")}><ArrowLeft size={18}/> Back to plans</button>
             <div
               className={`mlm-result-symbol ${resultPaid ? "is-success" : resultPending ? "is-pending" : "is-failed"}`}
             >
@@ -369,21 +406,21 @@ export default function MainSubscription() {
                   ? "Test purchase verified"
                   : "Your plan is ready"
                 : resultPending
-                  ? "Payment confirmation pending"
+                  ? (outcome.status === "created" ? "Previous checkout needs a status check" : "Payment confirmation pending")
                   : outcome.status === "refunded"
                     ? "Payment refunded"
                     : outcome.status === "partially_refunded"
                       ? "Payment partly refunded"
                       : outcome.status === "disputed"
                         ? "Payment under review"
-                        : "Payment didn't complete"}
+                        : outcome.status === "expired" ? "Checkout cancelled" : "Payment failed"}
             </h1>
             <p>
               {resultPaid
                 ? `${outcome.plan?.PlanName || "Your plan"} — payment verified.`
                 : resultPending
-                  ? "If money was debited, check this payment before paying again. You can safely reopen the app and recover this order."
-                  : "Check the payment status before trying again. Contact support with your order ID if money was debited."}
+                  ? "If money was debited, check this payment before paying again. This is the earlier order, not a new charge."
+                  : "This checkout is closed. You can choose a new plan. If money was debited, contact support with your order ID."}
             </p>
             <div className="mlm-payment-summary">
               <p>
@@ -432,15 +469,7 @@ export default function MainSubscription() {
                   >
                     {checking ? "Checking…" : "Check payment"}
                   </button>
-                  <button
-                    className="mlm-secondary"
-                    onClick={() => {
-                      setSelected(pending.plan || pending.checkout?.plan);
-                      setCheckout(true);
-                    }}
-                  >
-                    Resume this checkout
-                  </button>
+
                 </>
               ) : (
                 <button
@@ -467,7 +496,7 @@ export default function MainSubscription() {
               <section className="mlm-pending-card">
                 <Clock size={20} />
                 <div>
-                  <h3>Payment confirmation pending</h3>
+                  <h3>{pending.checkout?.status === "created" ? "Previous checkout" : "Payment confirmation pending"}</h3>
                   <p>
                     {pending.plan?.PlanName || pending.checkout?.plan?.PlanName}{" "}
                     · Check this order before paying again.
@@ -475,14 +504,7 @@ export default function MainSubscription() {
                   <button disabled={checking} onClick={check}>
                     {checking ? "Checking…" : "Check payment"}
                   </button>
-                  <button
-                    onClick={() => {
-                      setSelected(pending.plan || pending.checkout?.plan);
-                      setCheckout(true);
-                    }}
-                  >
-                    Resume checkout
-                  </button>
+
                 </div>
               </section>
             )}

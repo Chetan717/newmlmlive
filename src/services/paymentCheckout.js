@@ -49,7 +49,7 @@ export async function openPaymentCheckout(checkout, user = {}) {
     const gateway = new window.Razorpay({
       ...options, retry: { enabled: false },
       handler: (response) => finish({ status: "verify", response }),
-      modal: { ondismiss: () => finish({ status: "pending", message: failureMessage }) },
+      modal: { ondismiss: () => finish({ status: failureMessage ? "failed" : "cancelled", message: failureMessage }) },
     });
     // A failed-attempt event can arrive while Checkout is still visible. Do
     // not restore our app dialog on top of a gateway that is still interactive.

@@ -12,6 +12,13 @@ export function newPaymentRequestId() {
 export const serviceLabel = (kind = "poster") => ({
   poster: "Poster Design", video: "Video Editing", combo: "Poster + Video Editing",
 })[kind] || "Poster Design";
+// Reject mismatched frozen quotes before any browser/native gateway opens.
+export function matchesCheckout(order, quote) {
+  return Boolean(order?.orderId && order.status === "created" &&
+    order.plan?.planId === quote?.plan?.planId && order.quoteId === quote?.quoteId &&
+    order.mode === quote?.mode && Number.isSafeInteger(quote?.price?.totalPaise) &&
+    order.price?.totalPaise === quote.price.totalPaise && order.couponCode === (quote.couponCode || ""));
+}
 export const isPaid = (result) => result?.status === "paid" && Boolean(result?.purchaseId);
 const terminal = new Set(["paid", "refunded", "partially_refunded", "disputed", "failed", "expired"]);
 
@@ -112,38 +119,78 @@ export function createPaymentClient({ call, getUid, storage, now = Date.now, new
     }
     return recover();
   }
-  async function recover() {
+  async function recover(closeUnpaid = false) {
     const owner = scope();
     const draftKey = storageKey();
-    const key = `${draftKey}:recover`;
+    const key = `${draftKey}:recover:${closeUnpaid}`;
     if (inflight.has(key)) return inflight.get(key);
     const pending = readPending();
     if (!pending) return null;
     const promise = (async () => {
       const result = pending.purchaseId
-        ? await call("paymentStatus", { purchaseId: pending.purchaseId })
+        ? await call("paymentStatus", { purchaseId: pending.purchaseId, ...(closeUnpaid ? { closeUnpaid: true } : {}) })
         : await call("paymentCreateOrder", {
           planId: pending.planId, couponCode: pending.couponCode,
           quoteId: pending.quoteId, requestId: pending.requestId,
         });
       assertOwner(owner);
       if (storageKey() !== draftKey) throw new Error("Payment mode changed. Refresh your plans and check payment again.");
+      const current = readPending();
+      if (!current || (pending.purchaseId ? current.purchaseId !== pending.purchaseId : current.requestId !== pending.requestId))
+        throw new Error("Payment session changed in another tab. Check the latest payment before continuing.");
       return accept(result);
     })().catch((error) => {
       if (getUid() && scope() === owner && !pending.purchaseId && error?.details?.checkoutNotCreated === true) {
-        storage.removeItem(storageKey());
-        invalidate();
+        if (storageKey() === draftKey && readPending()?.requestId === pending.requestId) {
+          storage.removeItem(storageKey());
+          invalidate();
+          if (error.details.pendingCheckout?.purchaseId) remember(error.details.pendingCheckout);
+        }
       }
       throw error;
     }).finally(() => inflight.delete(key));
     inflight.set(key, promise);
     return promise;
   }
+  async function closePrevious() {
+    // If the original create response was lost, recover exactly that request ID
+    // first. Never silently create another provider order while it is unknown.
+    const hadPurchase = Boolean(readPending()?.purchaseId);
+    let result = await recover(true);
+    if (!hadPurchase && result?.status === "created" && result.orderId) result = await recover(true);
+    return result;
+  }
+  async function startFresh(quote) {
+    rememberMode(quote);
+    const owner = scope(), key = `${storageKey()}:fresh`;
+    if (inflight.has(key)) return inflight.get(key);
+    const promise = (async () => {
+      if (readPending()) {
+        const previous = await closePrevious();
+        assertOwner(owner);
+        if (!previous || !["failed", "expired"].includes(previous.status)) return { ...previous, previousCheckout: true };
+      }
+      try { return await create(quote); }
+      catch (error) {
+        // Server found an order on a different device. Do not automatically
+        // close an interactive checkout there; user can explicitly check it.
+        if (error?.details?.pendingCheckout) return { ...error.details.pendingCheckout, previousCheckout: true };
+        throw error;
+      }
+    })().finally(() => inflight.delete(key));
+    inflight.set(key, promise);
+    return promise;
+  }
+  function remember(checkout) {
+    rememberMode(checkout);
+    writePending({ planId: checkout.plan.planId, plan: checkout.plan, purchaseId: checkout.purchaseId, checkout,
+      quoteId: checkout.quoteId, couponCode: checkout.couponCode || "" });
+  }
   async function check(minimumInterval = 15000) {
     const key = storageKey();
     const previous = checks.get(key);
     if (previous && now() - previous.at < minimumInterval) return previous.promise;
-    const promise = recover();
+    const promise = closePrevious();
     checks.set(key, { at: now(), promise });
     promise.catch(() => checks.delete(key));
     return promise;
@@ -166,10 +213,7 @@ export function createPaymentClient({ call, getUid, storage, now = Date.now, new
       assertOwner(owner);
       return result.invoice;
     },
-    remember: (checkout) => {
-      rememberMode(checkout);
-      writePending({ planId: checkout.plan.planId, plan: checkout.plan, purchaseId: checkout.purchaseId, checkout });
-    },
+    remember, startFresh, closePrevious,
     verify: async (purchaseId, response) => {
       const owner = scope();
       const draftKey = storageKey();
@@ -181,6 +225,12 @@ export function createPaymentClient({ call, getUid, storage, now = Date.now, new
       });
       assertOwner(owner);
       if (storageKey() !== draftKey) throw new Error("Payment mode changed. Check payment again from the subscription page.");
+      if (readPending()?.purchaseId !== purchaseId) {
+        // Payment was still verified on the server. Do not overwrite another
+        // tab's recovery record or silently clear a different active checkout.
+        invalidate();
+        return result;
+      }
       return accept(result);
     },
   };
