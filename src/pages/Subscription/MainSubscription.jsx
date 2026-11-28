@@ -453,7 +453,7 @@ export default function MainSubscription() {
                 className="mlm-text-button"
                 onClick={() => setView("history")}
               >
-                Purchase history
+            History
               </button>
             </div>
           </section>
@@ -631,7 +631,7 @@ export default function MainSubscription() {
                   </button>
                   <button onClick={() => setView("history")}>
                     <History size={20} />
-                    Purchase history
+                    History
                     <ChevronRight size={19} />
                   </button>
                   <button disabled={loading} onClick={() => reload(true)}>
